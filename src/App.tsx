@@ -9,14 +9,14 @@ import decoder from './helpers/decoder'
 function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState<string>('')
-  const [room, setRoom] = useState<string>(localStorage.getItem('room') || '')
+  const [room, setRoom] = useState<string>('')
   const [connected, setConnected] = useState<boolean>(false)
   const ws = useRef<WebSocket | null>(null)
 
-  const connectToRoom = async () => {
-    console.log("trying to connect to room", room);
+  async function connectToRoom () {
     
     if (room) {
+      console.log("trying to connect to room", room);
       ws.current = new WebSocket(`${websocketPrefix}${apiUrl}/ws/${encodeURIComponent(room)}`)
       console.log("connected to room", room);
       
@@ -37,18 +37,18 @@ function App() {
         
       }
       ws.current.onopen = () => {
+        
         setConnected(true)
         setMessages([])
       }
       ws.current.onclose = () => {
         setConnected(false)
-        localStorage.removeItem('room')
         setRoom('')
       }
     }
   }
 
-  const sendMessage = (e: React.FormEvent) => {
+  function sendMessage (e: React.FormEvent){
     e.preventDefault()
     if (inputMessage && ws.current) {
       ws.current.send(
@@ -61,13 +61,26 @@ function App() {
     }
   }
 
-  const createRoom = async () => {
-    const response = await fetch(`${fetchPrefix}${apiUrl}/create_room`)
+  async function createRoom () {
+    const response = await fetch(`${fetchPrefix}${apiUrl}/create_room`,{
+      method: 'POST',
+      headers: {'Content-Type': 'application/json',},
+      body: JSON.stringify({
+      fast_chat: false,
+      once_view_photos_and_videos: false,
+      mandatory_focus: false
+      }),
+    })
     const data: { room_code: string } = await response.json()
     setRoom(data.room_code)
-    // save in LS
-    localStorage.setItem('room', data.room_code)
+
   }
+
+  useEffect(() => {
+    if (room?.length >= 6) {
+      connectToRoom()
+    }
+  }, [room])
 
   useEffect(() => {
     return () => {
@@ -80,6 +93,7 @@ function App() {
   return (
     <div className="chat-container">
       <h1>WebSocket Chat</h1>
+      <small><strong>Code:</strong>{room}</small>
       {!connected ? (
         <div>
           <input
