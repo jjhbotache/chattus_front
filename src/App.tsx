@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'
 import './App.css'
 import { Message } from './interface/msgInterface'
-import { apiUrl } from './appConstants'
+import { apiUrl, fetchPrefix, websocketPrefix } from './appConstants'
+import { MessageResponse } from './interface/responses'
+import encoder from './helpers/encoder'
+import decoder from './helpers/decoder'
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState<string>('')
-  const [room, setRoom] = useState<string>('')
+  const [room, setRoom] = useState<string>(localStorage.getItem('room') || '')
   const [connected, setConnected] = useState<boolean>(false)
   const ws = useRef<WebSocket | null>(null)
 
@@ -14,20 +17,33 @@ function App() {
     console.log("trying to connect to room", room);
     
     if (room) {
-      ws.current = new WebSocket(`wss://${apiUrl}/ws/${room}`)
+      ws.current = new WebSocket(`${websocketPrefix}${apiUrl}/ws/${encodeURIComponent(room)}`)
       console.log("connected to room", room);
       
       ws.current.onmessage = (event: MessageEvent) => {
-        const parsedData:Message[] = JSON.parse(event.data)
-        console.log(parsedData );
-        setMessages(parsedData)
+        console.log(event.data);
+        const response:MessageResponse = JSON.parse(event.data)
+        console.log(response);
+        
+        if (response.msgs) {
+          const decodedMsgs = response.msgs.map((msg) => {  
+            return {
+              ...msg,
+              message: decoder(msg.message, room),
+            }
+          })
+          setMessages(decodedMsgs)
+        }
         
       }
       ws.current.onopen = () => {
         setConnected(true)
+        setMessages([])
       }
       ws.current.onclose = () => {
         setConnected(false)
+        localStorage.removeItem('room')
+        setRoom('')
       }
     }
   }
@@ -37,7 +53,7 @@ function App() {
     if (inputMessage && ws.current) {
       ws.current.send(
         JSON.stringify({
-          message: inputMessage,
+          message: encoder(inputMessage, room),
           kind: 'message',
         }),
       )
@@ -46,9 +62,11 @@ function App() {
   }
 
   const createRoom = async () => {
-    const response = await fetch(`https://${apiUrl}/create_room`)
+    const response = await fetch(`${fetchPrefix}${apiUrl}/create_room`)
     const data: { room_code: string } = await response.json()
     setRoom(data.room_code)
+    // save in LS
+    localStorage.setItem('room', data.room_code)
   }
 
   useEffect(() => {
