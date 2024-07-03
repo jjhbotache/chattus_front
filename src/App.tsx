@@ -14,7 +14,7 @@ function App() {
     console.log("trying to connect to room", room);
     
     if (room) {
-      ws.current = new WebSocket(`ws://${apiUrl}/ws/${room}`)
+      ws.current = new WebSocket(`wss://${apiUrl}/ws/${room}`)
       console.log("connected to room", room);
       
       ws.current.onmessage = (event: MessageEvent) => {
