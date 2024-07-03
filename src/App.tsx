@@ -29,7 +29,7 @@ function App() {
           const decodedMsgs = response.msgs.map((msg) => {  
             return {
               ...msg,
-              message: decoder(msg.message, room),
+              message: msg.sender === 'System' ? msg.message : decoder(msg.message, room),
             }
           })
           setMessages(decodedMsgs)
