@@ -42,9 +42,7 @@ function App() {
   }
 
   const createRoom = async () => {
-    const response = await fetch(`http://${apiUrl}/create_room`, {
-      method: 'POST',
-    })
+    const response = await fetch(`https://${apiUrl}/create_room`)
     const data: { room_code: string } = await response.json()
     setRoom(data.room_code)
   }
