@@ -11,8 +11,12 @@ function App() {
   const ws = useRef<WebSocket | null>(null)
 
   const connectToRoom = async () => {
+    console.log("trying to connect to room", room);
+    
     if (room) {
       ws.current = new WebSocket(`ws://${apiUrl}/ws/${room}`)
+      console.log("connected to room", room);
+      
       ws.current.onmessage = (event: MessageEvent) => {
         const parsedData:Message[] = JSON.parse(event.data)
         console.log(parsedData );
