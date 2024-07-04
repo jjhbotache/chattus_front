@@ -5,6 +5,7 @@ export const colors = {
   secondary: '#7B5E7B',
   light: '#E0DEE3',
   accent: '#1C023D',
+  shadow: '#6A0BFF',
 };
 
 export const GlobalStyle = createGlobalStyle`
@@ -69,7 +70,7 @@ export const GlobalStyle = createGlobalStyle`
     background: ${colors.accent};
     border-radius: 9999em;
     border: none;
-    box-shadow: 0 0 .4em #6A0BFF;
+    box-shadow: 0 0 .4em ${colors.shadow};
   }
 
 `;

@@ -55,7 +55,7 @@ const completed_border = keyframes`
     border-color: ${colors.secondary};
   }
   50%{
-    border-color: #6A0BFF;
+    border-color: ${colors.shadow};
   }
   100%{
     border-color: ${colors.secondary};
@@ -67,7 +67,7 @@ const Container = styled.div`
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  height: 100vh;
+  height: 90%;
   padding: 1em;
   box-sizing: border-box;
   background: ${colors.primary};
