@@ -81,10 +81,10 @@ const Container = styled.div`
 
       i,i::before,i::after{
         position: absolute;
-        bottom: 0;
-        left: -1px;
-        font-size: .8em;
-        transform: rotate(45deg);
+        bottom: -2px;
+        left: 0;
+        font-size: .7em;
+        rotate: -15deg;
         color: ${colors.accent};
       }
       
@@ -94,12 +94,9 @@ const Container = styled.div`
         background: ${colors.secondary};
         color: ${colors.light};
         i,i::before,i::after{
-          position: absolute;
-          bottom: 0;
           left: unset;
-          right: -1px;
-          font-size: .8em;
-          transform: rotate(315deg) ;
+          right: -0.33px;
+          rotate: 15deg;
           color: ${colors.secondary};
         }
       }
