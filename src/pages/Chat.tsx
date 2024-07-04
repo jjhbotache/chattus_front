@@ -87,7 +87,7 @@ export default function Chat() {
       
       <div className="msgContainer">
         <i className="fi fi-rr-square-plus"></i>
-        <input type="text" className="msg" value={textToSend} onChange={(e) => setTextToSend(e.target.value)} />
+        <input type="text" className="msg" value={textToSend} onChange={(e) => setTextToSend(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (sendMessage())}  />
         {
           textToSend.length > 0 
           ?<i onClick={sendMessage} className=" fi fi-ss-paper-plane-top"></i>
