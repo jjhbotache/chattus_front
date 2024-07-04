@@ -1,6 +1,11 @@
 import styled from 'styled-components';
 import { colors } from '../globalStyle';
 import { useState } from 'react';
+import { fetchAPI, websocketAPI } from '../appConstants';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setRoom } from '../redux/slices/roomSlice';
+import { setWebsocket } from '../redux/slices/websocketSlice';
 // import { Container, Title, Button, Input } from '../styles';
 
 interface Features {
@@ -12,9 +17,6 @@ interface Features {
 
 
 export default function CreateRoom() {
-  // const [fastChat, setFastChat] = useState(false);
-  // const [mandatoryFocus, setMandatoryFocus] = useState(false);
-  // const [onlyOncePhotos, setOnlyOncePhotos] = useState(false);
   const [features, setFeatures] = useState<Features>({
     "Fast chat": false,
     "Mandatory focus": false,
@@ -22,6 +24,47 @@ export default function CreateRoom() {
   });
 
 
+  const navigate = useNavigate()
+  const dispacher = useDispatch()
+
+  function createRoom() {
+    fetch(fetchAPI + '/create_room',{
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fast_chat: features["Fast chat"],
+        mandatory_focus: features["Mandatory focus"],
+        once_view_photos_and_videos: features["Only watch once videos & photos"]
+      })
+    }).then(res => res.json()).then(async res => {
+      if (res.room_code) {
+        // join to the room
+        const wsConnection = new WebSocket(websocketAPI + `/${encodeURIComponent(res.room_code)}`);
+        wsConnection.onopen = () => {
+          dispacher(setWebsocket(wsConnection))
+          dispacher(setRoom(res.room_code))
+          navigate('/share-code')
+        };
+        wsConnection.onclose = () => {
+          dispacher(setWebsocket(null))
+          dispacher(setRoom(""))
+          navigate('/')
+        };
+        wsConnection.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          // Handle any WebSocket errors
+        };
+
+        
+      }else{
+        throw new Error('Failed to create room')
+      }
+    }).catch(err => {
+      console.error(err)
+    })
+  }
 
   return (
     <Container>
@@ -42,7 +85,7 @@ export default function CreateRoom() {
           ))
         }
       </div>
-      <button className='btn'>Create</button>
+      <button onClick={createRoom} className='btn'>Create</button>
     </Container>
   );
 };
@@ -56,7 +99,6 @@ const Container = styled.div`
   height: 90%;
   padding: 1em;
   box-sizing: border-box;
-  background: ${colors.primary};
   color: ${colors.light};
 
   .mainContent{

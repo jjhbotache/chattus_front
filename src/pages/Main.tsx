@@ -1,9 +1,22 @@
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { colors } from '../globalStyle';
+import { useEffect } from 'react';
+import { useSelector } from 'react-redux';
 
 export default function Main() {
   const navigate = useNavigate();
+  const ws:WebSocket = useSelector((state: any) => state.websocket);
+
+  useEffect(() => {
+    if (ws !== null) {
+      ws.onclose = () => {
+        navigate('/');
+      }
+      ws.onmessage = (_:MessageEvent) => {
+      }
+    }
+  }, []);
   
   return (
     <Container>

@@ -1,18 +1,47 @@
 import styled, { keyframes } from 'styled-components';
 import { colors } from '../globalStyle';
 import { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { websocketAPI } from '../appConstants';
+import { setWebsocket } from '../redux/slices/websocketSlice';
+import { setRoom } from '../redux/slices/roomSlice';
+import { useNavigate } from 'react-router-dom';
 const codeLength = 6;
 export default function JoinRoom() {
-  const [code, setcode] = useState<string>('');
+  const [inputCode, setInputCode] = useState<string>('');
   const [focusInput, setfocusInput] = useState<boolean>(false);
+
+  const dispacher = useDispatch();
+  const navigate = useNavigate();
   
+  function joinRoom(){
+    // set the room code in the store and the ws
+    if (inputCode.length === codeLength) {
+      const wsConnection = new WebSocket(websocketAPI + `/${encodeURIComponent(inputCode)}`);
+      wsConnection.onopen = () => {
+        dispacher(setWebsocket(wsConnection))
+        dispacher(setRoom(inputCode))
+        navigate('/chat')
+      };
+      wsConnection.onclose = () => {
+        dispacher(setWebsocket(null))
+        dispacher(setRoom(""))
+        navigate('/')
+      };
+      wsConnection.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        // Handle any WebSocket errors
+      };
+    }
+  }
+
   return (
     <Container>
       <h1 className='title'>Join Room</h1>
       <div className="codeInputContainer">
         <input type="text" 
-          value={code} 
-          onChange={(e) => {setcode(e.target.value)}}
+          value={inputCode} 
+          onChange={(e) => {setInputCode(e.target.value)}}
           maxLength={codeLength}
           onFocus={() => setfocusInput(true)}
           onBlur={() => setfocusInput(false)}
@@ -21,17 +50,20 @@ export default function JoinRoom() {
           Array.from({ length: codeLength }).map((_, i) => (
             <div className={`
               codeChar 
-              ${code.length === codeLength ? 'completed' : ''}
-              ${code[i] ? 'fullfiled' : ''} 
-              ${i === code.length ? 'active' : ''}
-              ${i === code.length && focusInput ? 'next' : ''}
+              ${inputCode.length === codeLength ? 'completed' : ''}
+              ${inputCode[i] ? 'fullfiled' : ''} 
+              ${i === inputCode.length ? 'active' : ''}
+              ${i === inputCode.length && focusInput ? 'next' : ''}
             `} key={i}>
-              <span>{code[i]}</span>
+              <span>{inputCode[i]}</span>
             </div>
           ))
         }
       </div>
-      <button className='btn'>
+      <button className='btn' 
+        onClick={joinRoom}
+        disabled={inputCode.length !== codeLength}
+       >
         Join
       </button>
     </Container>
@@ -70,7 +102,6 @@ const Container = styled.div`
   height: 90%;
   padding: 1em;
   box-sizing: border-box;
-  background: ${colors.primary};
   color: ${colors.light};
 
   .codeInputContainer{

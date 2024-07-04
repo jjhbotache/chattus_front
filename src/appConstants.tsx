@@ -3,6 +3,8 @@ const devApiUrl = 'localhost:8000';
 
 
 const developing = import.meta.env.MODE === 'development';
-export const apiUrl = developing ? devApiUrl : realApiUrl;
-export const websocketPrefix = developing ? 'ws://' : 'wss://';
-export const fetchPrefix = developing ? 'http://' : 'https://';
+const apiUrl = developing ? devApiUrl : realApiUrl;
+const websocketPrefix = developing ? 'ws://' : 'wss://';
+const fetchPrefix = developing ? 'http://' : 'https://';
+export const fetchAPI = fetchPrefix + apiUrl;
+export const websocketAPI = websocketPrefix + apiUrl + '/ws';

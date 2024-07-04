@@ -1,14 +1,38 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components"
+import { MessageResponse } from "../interface/responses";
 
 export default function ShareYourCode() {
-  const [code, setCode] = useState<string>('123456');
+  const code = useSelector((state: any) => state.room);
+  const wsConnection:WebSocket = useSelector((state: any) => state.websocket);
+
   const [visibleCode, setvisibleCode] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const code = Math.random().toString().slice(2, 8);
-    setCode(code);
-  }, []);
+    if (!code || wsConnection == null) {
+      navigate('/')
+    }else{
+      wsConnection.onmessage = (event:MessageEvent) => {
+        const response:MessageResponse = JSON.parse(event.data)
+        if (response.msgs) {
+          navigate('/chat')
+          // const decodedMsgs = response.msgs.map((msg) => {  
+          //   return {
+          //     ...msg,
+          //     message: msg.sender === 'System' ? msg.message : decoder(msg.message, room),
+          //   }
+          // })
+          // setMessages(decodedMsgs)
+        }
+      }
+    }
+  }, [code, navigate])
+
+  
+
   return(
     <Container>
       <h1 className="title">Share your code</h1>

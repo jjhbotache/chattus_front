@@ -1,40 +1,80 @@
 import styled from "styled-components";
 import { colors } from "../globalStyle";
 import { Message } from "../interface/msgInterface";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import encoder from "../helpers/encoder";
+import { useNavigate } from "react-router-dom";
+import decoder from "../helpers/decoder";
 
-const mockMessages: Message[] = [
-  {
-    message: "Hello",
-    sender: "you",
-    kind: "message",
-  },
-  {
-    message: "Hi",
-    sender: "123544231",
-    kind: "message",
-  },
-  {
-    message: "How are you?",
-    sender: "123544231",
-    kind: "message",
-  },
-  {
-    message: "I'm fine, thanks",
-    sender: "123544231",
-    kind: "message",
-  },
-]
   
 
 export default function Chat() {
   const [textToSend, setTextToSend] = useState<string>("");
+  const [msgs, setMsgs] = useState<Message[]>([]);
+  const ws:WebSocket = useSelector((state: any) => state.websocket);
+  const room:string = useSelector((state: any) => state.room);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (ws !== null) {
+      ws.onmessage = (event:MessageEvent) => {
+        const response = JSON.parse(event.data);
+        console.log(response);
+        
+        if (response.msgs) {
+          const decodedMsgs = response.msgs.map((msg:Message) => {  
+            return {
+              ...msg,
+              message: msg.sender === 'System' ? msg.message : decoder(msg.message, room),
+            }
+          })
+          setMsgs(decodedMsgs);
+        }
+      }
+
+      ws.onclose = () => {
+        console.log("ws connection closed");
+        navigate('/');
+      }
+
+    }else{
+      console.log("No ws connection found");
+      navigate('/');
+    }
+
+
+    const onKeydown = (e:KeyboardEvent) => {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    }
+
+    // listen to the enter key
+    window.addEventListener("keydown", onKeydown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeydown);
+    }
+  }, []);
+
+  function sendMessage(){
+    if (textToSend.length > 0) {
+      ws.send(
+          JSON.stringify({
+            message: encoder(textToSend, room),
+            kind: 'message',
+          }),
+        )
+      setTextToSend("");
+    }
+  }
 
   return(
     <Container>
       <div className="msgsContainer">
-        {mockMessages.map((msg, index) => (
-          <div key={index} className={`msg ${msg.sender === "you" && "myMessage"}`}>
+        {msgs.map((msg, index) => (
+          <div key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}>
             <small>{msg.sender}</small>
             {msg.message}
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="triangle">
@@ -50,7 +90,7 @@ export default function Chat() {
         <input type="text" className="msg" value={textToSend} onChange={(e) => setTextToSend(e.target.value)} />
         {
           textToSend.length > 0 
-          ?<i className=" fi fi-ss-paper-plane-top"></i>
+          ?<i onClick={sendMessage} className=" fi fi-ss-paper-plane-top"></i>
           :<i className="fi fi-rr-microphone"></i>
         }
       </div>
@@ -93,6 +133,8 @@ const Container = styled.div`
       max-width: 80%;
       align-self: flex-start;
       color: ${colors.light};
+
+      overflow-wrap: break-word;
 
       max-width: 70%;
       small{
