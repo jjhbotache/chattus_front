@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setRoom } from '../redux/slices/roomSlice';
 import { setWebsocket } from '../redux/slices/websocketSlice';
+import LoadingScreen from './LoadingScreen';
 // import { Container, Title, Button, Input } from '../styles';
 
 interface Features {
@@ -22,12 +23,14 @@ export default function CreateRoom() {
     "Mandatory focus": false,
     "Only watch once videos & photos": false,
   });
+  const [loading, setLoading] = useState<boolean>(false);
 
 
   const navigate = useNavigate()
   const dispacher = useDispatch()
 
   function createRoom() {
+    setLoading(true)
     fetch(fetchAPI + '/create_room',{
       method: 'POST',
       headers: {
@@ -64,9 +67,13 @@ export default function CreateRoom() {
     }).catch(err => {
       console.error(err)
     })
+    .finally(() => {
+      setLoading(false)
+    })
   }
 
-  return (
+  return loading ? <LoadingScreen />:
+  (
     <Container>
       <div className='mainContent'>
         <h1 className='title'>Create Room</h1>

@@ -6,19 +6,23 @@ import { websocketAPI } from '../appConstants';
 import { setWebsocket } from '../redux/slices/websocketSlice';
 import { setRoom } from '../redux/slices/roomSlice';
 import { useNavigate } from 'react-router-dom';
+import LoadingScreen from './LoadingScreen';
 const codeLength = 6;
 export default function JoinRoom() {
   const [inputCode, setInputCode] = useState<string>('');
   const [focusInput, setfocusInput] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const dispacher = useDispatch();
   const navigate = useNavigate();
   
-  function joinRoom(){
+  async function joinRoom(){
     // set the room code in the store and the ws
     if (inputCode.length === codeLength) {
+      setLoading(true)
       const wsConnection = new WebSocket(websocketAPI + `/${encodeURIComponent(inputCode)}`);
       wsConnection.onopen = () => {
+        setLoading(false)
         dispacher(setWebsocket(wsConnection))
         dispacher(setRoom(inputCode))
         navigate('/chat')
@@ -29,13 +33,15 @@ export default function JoinRoom() {
         navigate('/')
       };
       wsConnection.onerror = (error) => {
+        setLoading(false)
         console.error('WebSocket error:', error);
         // Handle any WebSocket errors
       };
     }
   }
 
-  return (
+  return loading ? <LoadingScreen />:
+  (
     <Container>
       <h1 className='title'>Join Room</h1>
       <div className="codeInputContainer">
