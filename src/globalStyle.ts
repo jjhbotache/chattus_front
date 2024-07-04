@@ -23,7 +23,7 @@ export const GlobalStyle = createGlobalStyle`
     padding: 0;
     font-family: 'King', sans-serif;
     color: ${colors.light};
-    height: 100vh;
+    height: 100%;
     width: 100vw;
     background: linear-gradient(
     90deg,
