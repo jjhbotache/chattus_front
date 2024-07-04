@@ -1,6 +1,7 @@
 import styled from "styled-components";
 import { colors } from "../globalStyle";
 import { Message } from "../interface/msgInterface";
+import { useState } from "react";
 
 const mockMessages: Message[] = [
   {
@@ -10,39 +11,48 @@ const mockMessages: Message[] = [
   },
   {
     message: "Hi",
-    sender: "me",
+    sender: "123544231",
     kind: "message",
   },
   {
     message: "How are you?",
-    sender: "you",
+    sender: "123544231",
     kind: "message",
   },
   {
     message: "I'm fine, thanks",
-    sender: "me",
+    sender: "123544231",
     kind: "message",
   },
 ]
   
 
 export default function Chat() {
+  const [textToSend, setTextToSend] = useState<string>("");
 
   return(
     <Container>
       <div className="msgsContainer">
         {mockMessages.map((msg, index) => (
           <div key={index} className={`msg ${msg.sender === "you" && "myMessage"}`}>
+            <small>{msg.sender}</small>
             {msg.message}
-            <i className="triangle fi fi-sr-triangle"></i>
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="triangle">
+              <polygon points="0,0 100,0 0,100" />
+            </svg>
           </div>
         ))}
 
       </div>
+      
       <div className="msgContainer">
         <i className="fi fi-rr-square-plus"></i>
-        <input type="text" className="msg" />
-        <i className="fi fi-sr-microphone"></i>
+        <input type="text" className="msg" value={textToSend} onChange={(e) => setTextToSend(e.target.value)} />
+        {
+          textToSend.length > 0 
+          ?<i className=" fi fi-ss-paper-plane-top"></i>
+          :<i className="fi fi-rr-microphone"></i>
+        }
       </div>
     </Container>
   )
@@ -69,7 +79,12 @@ const Container = styled.div`
     box-shadow: 0 0 1em ${colors.shadow};
     margin-bottom: .8em;
 
+    
+
     .msg{
+      display: flex;
+      flex-direction: column;
+
       position: relative;
       padding: .5em;
       border-radius: .5em;
@@ -79,27 +94,36 @@ const Container = styled.div`
       align-self: flex-start;
       color: ${colors.light};
 
-      i,i::before,i::after{
-        position: absolute;
-        bottom: -2px;
-        left: 0;
-        font-size: .7em;
-        rotate: -15deg;
-        color: ${colors.accent};
+      max-width: 70%;
+      small{
+        opacity: .5;
+        font-family: "Nazalization";
       }
-      
-      
+
+      .triangle{
+        height: 1em;
+        aspect-ratio: 1;
+        fill: ${colors.accent};
+        position: absolute;
+        bottom: -.5em;
+        left: 0;
+      }
+
       &.myMessage{
+        small{text-align: end;}
+        justify-content: flex-end;
         align-self: flex-end;
         background: ${colors.secondary};
         color: ${colors.light};
-        i,i::before,i::after{
+        .triangle{
           left: unset;
-          right: -0.33px;
-          rotate: 15deg;
-          color: ${colors.secondary};
+          right: 0;
+          transform: rotateY(180deg);
+          fill: ${colors.secondary};
         }
       }
+      
+      
     }
 
   }
