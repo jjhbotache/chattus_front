@@ -102,11 +102,12 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 90%;
+  height: 100%;
   padding: .1em;
   box-sizing: border-box;
 
   .msgsContainer{
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: .5em;
