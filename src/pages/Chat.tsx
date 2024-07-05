@@ -36,10 +36,6 @@ export default function Chat() {
           setMsgs(decodedMsgs);
         }
 
-        // scroll to the bottom of the messages container
-        if (msgsContainerRef.current !== null) {
-          msgsContainerRef.current.scrollTop = msgsContainerRef.current.scrollHeight;
-        }
       }
 
       ws.onclose = () => {
@@ -66,6 +62,13 @@ export default function Chat() {
       window.removeEventListener("keydown", onKeydown);
     }
   }, []);
+
+  useEffect(() => {
+    // scroll to the bottom of the messages container
+    if (msgsContainerRef.current !== null) {
+      msgsContainerRef.current.scrollTop = msgsContainerRef.current.scrollHeight;
+    }
+  }, [msgs]);
 
   function sendMessage(){
     if (textToSend.length > 0) {
