@@ -9,6 +9,7 @@ import decoder from "../helpers/decoder";
 import base64ToBlob from "../helpers/base64ToBlob";
 import getMimeType from "../helpers/getMimeTipe";
 import { motion } from "framer-motion";
+import AudioCustomComponent from "../components/global/AudioCustomComponent";
 
   
 
@@ -305,7 +306,8 @@ export default function Chat() {
               :msg.kind === "video" 
               ?<video src={msg.message} controls></video>
               :msg.kind === "audio" 
-              ?<audio src={msg.message} controls ></audio>
+              ?<AudioCustomComponent src={msg.message} />
+              // <audio src={msg.message} controls ></audio>
               :<button onClick={()=>downloadFile(msg.message)}>
                 <i className="fi fi-sr-down-to-line"></i>
                 Download file
@@ -433,7 +435,6 @@ const Container = styled.div`
 
       overflow-wrap: break-word;
 
-      max-width: 70%;
       small{
         opacity: .5;
         font-family: "Nazalization";
