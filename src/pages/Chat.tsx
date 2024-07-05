@@ -21,6 +21,8 @@ export default function Chat() {
   const navigate = useNavigate();
   const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const [recording, setRecording] = useState<boolean>(false);
 
   useEffect(() => {
     if (ws !== null) {
@@ -157,9 +159,6 @@ export default function Chat() {
     }
   }
 
-  function onAddAudio(){
-    console.log("add audio");
-  }
 
   function onAddFile(){
     const input = document.createElement("input");
@@ -222,7 +221,47 @@ export default function Chat() {
     }
   }
 
-  console.log(msgToReply);
+  function recordAndSendAud() {
+    
+    // record 3 secs of audio
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream:MediaStream) => {
+        mediaRecorder.current = new MediaRecorder(stream);
+        mediaRecorder.current.start();
+        setRecording(true);
+        let audioChunks:Blob[] = [];
+        mediaRecorder.current.ondataavailable = (e) => {
+          audioChunks.push(e.data);
+        }
+        mediaRecorder.current.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64String = reader.result;
+            ws.send(
+              JSON.stringify({
+                message: encoder(base64String as string, room),
+                kind: 'audio',
+                extension: "webm",
+              }),
+            )
+            setTextToSend("");
+            setOptionsDeployed(false);
+          }
+          reader.readAsDataURL(audioBlob);
+        }
+      })
+
+
+  }
+
+  function stopRecording() {
+    if (mediaRecorder.current) {
+      mediaRecorder.current.stop();
+      setRecording(false);
+    }
+  }
 
   return(
     <Container>
@@ -240,9 +279,9 @@ export default function Chat() {
           onDragEnd={(_, info) => {if (info.point.x > 50 || info.point.x < -50) setMsgToReply(msg);}}
           dragElastic={0.01}
           key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}>
-          {/* <div key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}> */}
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="triangle"><polygon points="0,0 100,0 0,100" /></svg>
-
+          
+            <i  onClick={() => setMsgToReply(msg)} className={`fi fi-br-reply-all replyIcon ${msg.sender === "You" && "left"}`}></i>
 
             <small>{msg.sender}</small>
             {
@@ -261,13 +300,14 @@ export default function Chat() {
               :msg.kind === "video" 
               ?<video src={msg.message} controls></video>
               :msg.kind === "audio" 
-              ?<audio src={msg.message} controls></audio>
+              ?<audio src={msg.message} controls ></audio>
               :<button onClick={()=>downloadFile(msg.message)}>
                 <i className="fi fi-sr-down-to-line"></i>
                 Download file
               </button>
-
             }
+
+            
             
           </motion.div>
         ))}
@@ -288,7 +328,12 @@ export default function Chat() {
         {
           textToSend.length > 0 
           ?<i onClick={sendMessage} className=" fi fi-ss-paper-plane-top"></i>
-          :<i onClick={onAddAudio} className="fi fi-rr-microphone"></i>
+          :<motion.div
+          onPointerDown={recordAndSendAud}
+          onPointerUp={stopRecording}
+          >
+            <i className={`fi fi-rr-microphone voiceIcon ${recording && "recording"}`}></i>
+          </motion.div>
         }
 
         {
@@ -343,6 +388,21 @@ const Container = styled.div`
       border-radius: .5em;
       border: none;
       cursor: pointer;
+    }
+    audio{
+      width: 50vw;
+      max-width: 100%;
+      font-size: .3em;
+      height: clamp(4em, 15vw, 5em);
+      /* make smaller */
+      &::-webkit-media-controls-volume-slider-container,
+      &::-webkit-media-controls-volume-slider,
+      &::-webkit-media-controls-mute-button
+      {
+        display: none;
+      }
+      
+      
     }
 
     .msg{
@@ -402,6 +462,21 @@ const Container = styled.div`
         }
       }
       
+      .replyIcon{
+        position: absolute;
+        top: -.5em;
+        right: -.5em;
+        font-size: .6em;
+        padding: .3em;
+        background: rgba(255,255,255,.6);
+        color: ${colors.primary};
+        border-radius: 50%;
+        cursor: pointer;
+        &.left{
+          right: unset;
+          left: -.5em;
+        }
+      }
       
     }
 
@@ -468,6 +543,17 @@ const Container = styled.div`
         background-color: ${colors.secondary};
         border-radius: 50%;
         cursor: pointer;
+      }
+    }
+
+    .voiceIcon{
+      background: ${colors.accent};
+      padding: .1em;
+      border-radius: 50%;
+
+      &.recording{
+        background: red;
+        transform: scale(1.2);
       }
     }
   }
