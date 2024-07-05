@@ -298,7 +298,7 @@ export default function Chat() {
             : { right: 100, left: 0}
           }
           onDragEnd={(_, info) => {
-          const umbral = msg.sender === "You" ? 80 : -80;
+          const umbral = msg.sender === "You" ? -80 : 80;
           if (info.point.x > umbral)setMsgToReply(msg);
           }}
           dragElastic={0.01}
