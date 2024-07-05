@@ -221,9 +221,6 @@ export default function Chat() {
   }
 
   function recordAndSendAud() {
-    console.log("Recording started");
-    return;
-    
 
     
     // record 3 secs of audio
@@ -267,12 +264,9 @@ export default function Chat() {
   }
 
   function stopRecording() {
-    console.log("Recording stopped");
-    return ;
-    
-    // if (mediaRecorder.current !== null) {
-    //   mediaRecorder.current.stop();
-    // }
+    if (mediaRecorder.current !== null) {
+      mediaRecorder.current.stop();
+    }
   }
 
   return(
