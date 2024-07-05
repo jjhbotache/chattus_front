@@ -222,6 +222,7 @@ export default function Chat() {
   }
 
   function recordAndSendAud() {
+    
 
     // if its already recording, stop it
     if (recording) {
@@ -268,6 +269,7 @@ export default function Chat() {
   }
 
   function stopRecording() {
+    
     if (mediaRecorder.current) {
       mediaRecorder.current.stop();
       setRecording(false);
@@ -340,8 +342,8 @@ export default function Chat() {
           textToSend.length > 0 
           ?<i onClick={sendMessage} className=" fi fi-ss-paper-plane-top"></i>
           :<motion.div
-          onPointerDown={recordAndSendAud}
-          onPointerUp={stopRecording}
+          onTapStart={recordAndSendAud}
+          onMouseUp={stopRecording}
           >
             <i className={`fi fi-rr-microphone voiceIcon ${recording && "recording"}`}></i>
           </motion.div>
