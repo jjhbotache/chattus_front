@@ -11,7 +11,8 @@ import getMimeType from "../helpers/getMimeTipe";
 import { motion } from "framer-motion";
 import AudioCustomComponent from "../components/global/AudioCustomComponent";
 
-  
+
+let mediaRecorder:MediaRecorder | undefined = undefined; 
 
 export default function Chat() {
   const [textToSend, setTextToSend] = useState<string>("");
@@ -22,7 +23,6 @@ export default function Chat() {
   const navigate = useNavigate();
   const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
 
   useEffect(() => {
     if (ws !== null) {
@@ -231,13 +231,13 @@ export default function Chat() {
       })
 
     function record(stream:MediaStream) {
-      mediaRecorder.current = new MediaRecorder(stream);
+      mediaRecorder = new MediaRecorder(stream);
       
       
       let audioChunks:Blob[] = [];
 
-      mediaRecorder.current.ondataavailable = (e) => {audioChunks.push(e.data);}
-      mediaRecorder.current.onstop = () => {
+      mediaRecorder.ondataavailable = (e) => {audioChunks.push(e.data);}
+      mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -264,16 +264,16 @@ export default function Chat() {
         reader.readAsDataURL(audioBlob);
       }
 
-      mediaRecorder.current.start();
+      mediaRecorder.start();
     }
 
 
   }
 
   function stopRecording() {
-    if (mediaRecorder.current) {
-      mediaRecorder.current.stop();
-      const stream = mediaRecorder.current.stream;
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      const stream = mediaRecorder.stream;
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
