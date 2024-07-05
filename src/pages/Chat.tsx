@@ -293,7 +293,7 @@ export default function Chat() {
             ? { right: 0, left: -100}
             : { right: 100, left: 0}
           }
-          onDragEnd={(_, info) => {if (info.point.x > 50 || info.point.x < -50) setMsgToReply(msg);}}
+          onDragEnd={(_, info) => {if (info.point.x > 90 || info.point.x < -90) setMsgToReply(msg);}}
           dragElastic={0.01}
           key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}>
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="triangle"><polygon points="0,0 100,0 0,100" /></svg>
