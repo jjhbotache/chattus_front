@@ -194,9 +194,8 @@ const AudioContainer = styled.div`
     border-radius: 50%;
     background-color: ${colors.shadow};
     position: absolute;
-    top: 50%;
+    top: -150%;
     left: 0;
-    transform: translate(-50%, -50%);
     
   }
 
