@@ -344,6 +344,8 @@ export default function Chat() {
           :<motion.div
           onTapStart={recordAndSendAud}
           onMouseUp={stopRecording}
+          onTapCancel={stopRecording}
+          onTouchEnd={stopRecording}
           >
             <i className={`fi fi-rr-microphone voiceIcon ${recording && "recording"}`}></i>
           </motion.div>
