@@ -1,5 +1,6 @@
 export interface Message {
   message: string;
   sender: string;
-  kind: "message" | "image" | "video" | "audio";
+  kind: "message" | "image" | "video" | "audio" | "file";
+  extension?: string;
 }
