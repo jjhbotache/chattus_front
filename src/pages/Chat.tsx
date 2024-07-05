@@ -13,6 +13,7 @@ import AudioCustomComponent from "../components/global/AudioCustomComponent";
 
 
 
+let mediaRecorder:MediaRecorder | undefined = undefined; 
 export default function Chat() {
   const [textToSend, setTextToSend] = useState<string>("");
   const [msgs, setMsgs] = useState<Message[]>([]);
@@ -22,7 +23,6 @@ export default function Chat() {
   const navigate = useNavigate();
   const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
-  const mediaRecorder = useRef<MediaRecorder | undefined>(undefined);
 
   useEffect(() => {
     if (ws !== null) {
@@ -231,13 +231,13 @@ export default function Chat() {
       })
 
     function record(stream:MediaStream) {
-      mediaRecorder.current = new MediaRecorder(stream);
+      mediaRecorder = new MediaRecorder(stream);
       
       
       let audioChunks:Blob[] = [];
 
-      mediaRecorder.current.ondataavailable = (e) => {audioChunks.push(e.data);}
-      mediaRecorder.current.onstop = () => {
+      mediaRecorder.ondataavailable = (e) => {audioChunks.push(e.data);}
+      mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -264,23 +264,23 @@ export default function Chat() {
         reader.readAsDataURL(audioBlob);
       }
 
-      mediaRecorder.current.start();
+      mediaRecorder.start();
     }
 
 
   }
 
   function stopRecording() {
-    if (mediaRecorder.current) {
-      mediaRecorder.current.stop();
-      const stream = mediaRecorder.current.stream;
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      const stream = mediaRecorder.stream;
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         // delete the stream
         stream.getTracks().forEach(track => stream.removeTrack(track));
       }
-      // delete the mediaRecorder.current
-      mediaRecorder.current = undefined;
+      // delete the mediaRecorder
+      mediaRecorder = undefined;
     }
   }
 
@@ -297,7 +297,10 @@ export default function Chat() {
             ? { right: 0, left: -100}
             : { right: 100, left: 0}
           }
-          onDragEnd={(_, info) => {if (info.point.x > 90 || info.point.x < -90) setMsgToReply(msg);}}
+          onDragEnd={(_, info) => {
+          const umbral = msg.sender === "You" ? 80 : -80;
+          if (info.point.x > umbral)setMsgToReply(msg);
+          }}
           dragElastic={0.01}
           key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}>
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="triangle"><polygon points="0,0 100,0 0,100" /></svg>
