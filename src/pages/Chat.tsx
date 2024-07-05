@@ -222,6 +222,12 @@ export default function Chat() {
   }
 
   function recordAndSendAud() {
+
+    // if its already recording, stop it
+    if (recording) {
+      stopRecording();
+      return;
+    }
     
     // record 3 secs of audio
     navigator.mediaDevices
@@ -238,6 +244,11 @@ export default function Chat() {
           const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
           const reader = new FileReader();
           reader.onloadend = () => {
+            // if the recording is less than 3 secs, don't send it
+
+            if (reader.result === null) return;
+            if ((reader.result as string).length < (30*1000)) return;
+
             const base64String = reader.result;
             ws.send(
               JSON.stringify({
@@ -355,6 +366,7 @@ const Container = styled.div`
   height: 100%;
   padding: .1em;
   box-sizing: border-box;
+  overflow: hidden; 
 
   .msgsContainer{
     flex: 1;
@@ -553,7 +565,7 @@ const Container = styled.div`
 
       &.recording{
         background: red;
-        transform: scale(1.2);
+        transform: scale(5);
       }
     }
   }
