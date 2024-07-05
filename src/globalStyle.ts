@@ -44,7 +44,6 @@ export const GlobalStyle = createGlobalStyle`
   i,i::before,i::after{
     display: grid;
     place-items: center;
-    color: ${colors.secondary};
   }
 
   .title{

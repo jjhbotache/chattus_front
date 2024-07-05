@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import decoder from "../helpers/decoder";
 import base64ToBlob from "../helpers/base64ToBlob";
 import getMimeType from "../helpers/getMimeTipe";
+import { motion } from "framer-motion";
 
   
 
@@ -19,6 +20,7 @@ export default function Chat() {
   const room:string = useSelector((state: any) => state.room);
   const navigate = useNavigate();
   const msgsContainerRef = useRef<HTMLDivElement>(null);
+  const [msgToReply, setMsgToReply] = useState<Message | null>(null);
 
   useEffect(() => {
     if (ws !== null) {
@@ -28,10 +30,21 @@ export default function Chat() {
         
         if (response.msgs) {
           const decodedMsgs = response.msgs.map((msg:Message) => {  
-            return {
+            let msgText = msg.sender === 'System' ? msg.message : decoder(msg.message, room)
+
+            const msgObjToReturn = {
               ...msg,
-              message: msg.sender === 'System' ? msg.message : decoder(msg.message, room),
+              message: msgText,
             }
+
+            if(msgText.includes("REPLYINGTO(")){
+              const [replayedText, realMsg] = msgText.replace("REPLYINGTO(","").split(")");
+              msgObjToReturn.message = realMsg;
+              msgObjToReturn.replyingTo = replayedText;
+            }
+            
+            
+            return msgObjToReturn;
           })
           setMsgs(decodedMsgs);
         }
@@ -72,13 +85,20 @@ export default function Chat() {
 
   function sendMessage(){
     if (textToSend.length > 0) {
+      let msgToSend = textToSend;
+      if (msgToReply){
+        const replayedText = msgToReply.kind === "message" ? msgToReply.message.substring(0, 15) : msgToReply.kind;
+        msgToSend = `REPLYINGTO(${replayedText})${msgToSend}`;
+      }
       ws.send(
           JSON.stringify({
-            message: encoder(textToSend, room),
+            message: encoder(msgToSend, room),
             kind: 'message',
           }),
         )
       setTextToSend("");
+      setOptionsDeployed(false);
+      setMsgToReply(null);
     }
   }
 
@@ -202,15 +222,37 @@ export default function Chat() {
     }
   }
 
+  console.log(msgToReply);
+
   return(
     <Container>
       <div className="msgsContainer" ref={msgsContainerRef}>
         {msgs.map((msg, index) => (
-          <div key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}>
+          <motion.div 
+          drag="x"
+          whileDrag={{ scale: 1.1 }}
+          dragSnapToOrigin={true}
+          dragConstraints={
+            msg.sender === "You"
+            ? { right: 0, left: -100}
+            : { right: 100, left: 0}
+          }
+          onDragEnd={(_, info) => {if (info.point.x > 50 || info.point.x < -50) setMsgToReply(msg);}}
+          dragElastic={0.01}
+          key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}>
+          {/* <div key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}> */}
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="triangle"><polygon points="0,0 100,0 0,100" /></svg>
 
 
             <small>{msg.sender}</small>
+            {
+              msg.replyingTo && <span className="reply">
+                <span>Replying to:</span>
+                {msg.replyingTo}...
+              </span>
+            }
+            
+
             {
               msg.kind === "message" 
               ?<span>{msg.message}</span>
@@ -227,7 +269,7 @@ export default function Chat() {
 
             }
             
-          </div>
+          </motion.div>
         ))}
 
       </div>
@@ -247,6 +289,14 @@ export default function Chat() {
           textToSend.length > 0 
           ?<i onClick={sendMessage} className=" fi fi-ss-paper-plane-top"></i>
           :<i onClick={onAddAudio} className="fi fi-rr-microphone"></i>
+        }
+
+        {
+          msgToReply && <div className="toReplyMsg">
+            <i className="fi fi-sr-cross-circle" onClick={() => setMsgToReply(null)}></i>
+            <small>Replying to:</small>
+            <span className="txt"> {msgToReply.kind === "message" ? msgToReply.message : msgToReply.kind} </span>
+          </div>
         }
       </div>
     </Container>
@@ -316,6 +366,19 @@ const Container = styled.div`
         font-family: "Nazalization";
       }
 
+      .reply{
+        display: flex;
+        flex-direction: column;
+        
+        background: rgba(0,0,0,.1);
+        box-shadow: 0 0 .2em black inset;
+        color: ${colors.light}bb;
+        padding: .2em;
+        font-size: .8em;
+        border-radius: .5em;
+        margin: .2em 0;
+      }
+
       .triangle{
         height: 1em;
         aspect-ratio: 1;
@@ -344,8 +407,6 @@ const Container = styled.div`
 
   }
 
-
-
   .msgContainer{
     margin: .4em;
     display: flex;
@@ -355,6 +416,7 @@ const Container = styled.div`
     background: ${colors.accent};
     box-shadow: 0 0 .4em ${colors.shadow};
     min-height: 1.3em;
+    position: relative;
 
     i{
       font-size: 1.5em;
@@ -376,6 +438,36 @@ const Container = styled.div`
 
       &:focus{
         outline: none;
+      }
+    }
+
+    .toReplyMsg{
+      small{
+        color: ${colors.light}aa;
+      }
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      top: -4em;
+      left: 0;
+      background: ${colors.secondary};
+      padding: .5em;
+      width: 80%;
+      border-radius: .5em;
+      .txt{
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      i{
+        position: absolute;
+        top: -.5em;
+        right: -.5em;
+        font-size: 1.2em;
+        color: ${colors.light};
+        background-color: ${colors.secondary};
+        border-radius: 50%;
+        cursor: pointer;
       }
     }
   }

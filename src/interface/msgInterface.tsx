@@ -3,4 +3,5 @@ export interface Message {
   sender: string;
   kind: "message" | "image" | "video" | "audio" | "file";
   extension?: string;
+  replyingTo?: string;
 }

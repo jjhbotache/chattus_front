@@ -7,7 +7,6 @@ import { MessageResponse } from "../interface/responses";
 export default function ShareYourCode() {
   const code = useSelector((state: any) => state.room);
   const wsConnection:WebSocket = useSelector((state: any) => state.websocket);
-
   const [visibleCode, setvisibleCode] = useState<boolean>(false);
   const navigate = useNavigate();
 
@@ -19,13 +18,6 @@ export default function ShareYourCode() {
         const response:MessageResponse = JSON.parse(event.data)
         if (response.msgs) {
           navigate('/chat')
-          // const decodedMsgs = response.msgs.map((msg) => {  
-          //   return {
-          //     ...msg,
-          //     message: msg.sender === 'System' ? msg.message : decoder(msg.message, room),
-          //   }
-          // })
-          // setMessages(decodedMsgs)
         }
       }
     }
@@ -73,8 +65,9 @@ const Container = styled.div`
     flex-direction: column;
     align-items: center;
     .code{
-      font-size: 4em;
-      margin: .1em;
+      font-size: 3em;
+      padding: .1em;
+      box-sizing: border-box;
       font-family: "King";
       text-align: center;
       width: 100%;
