@@ -12,7 +12,6 @@ import { motion } from "framer-motion";
 import AudioCustomComponent from "../components/global/AudioCustomComponent";
 
 
-let mediaRecorder:MediaRecorder | undefined = undefined; 
 
 export default function Chat() {
   const [textToSend, setTextToSend] = useState<string>("");
@@ -23,6 +22,7 @@ export default function Chat() {
   const navigate = useNavigate();
   const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
+  const mediaRecorder = useRef<MediaRecorder | undefined>(undefined);
 
   useEffect(() => {
     if (ws !== null) {
@@ -231,13 +231,13 @@ export default function Chat() {
       })
 
     function record(stream:MediaStream) {
-      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.current = new MediaRecorder(stream);
       
       
       let audioChunks:Blob[] = [];
 
-      mediaRecorder.ondataavailable = (e) => {audioChunks.push(e.data);}
-      mediaRecorder.onstop = () => {
+      mediaRecorder.current.ondataavailable = (e) => {audioChunks.push(e.data);}
+      mediaRecorder.current.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -264,23 +264,23 @@ export default function Chat() {
         reader.readAsDataURL(audioBlob);
       }
 
-      mediaRecorder.start();
+      mediaRecorder.current.start();
     }
 
 
   }
 
   function stopRecording() {
-    if (mediaRecorder) {
-      mediaRecorder.stop();
-      const stream = mediaRecorder.stream;
+    if (mediaRecorder.current) {
+      mediaRecorder.current.stop();
+      const stream = mediaRecorder.current.stream;
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         // delete the stream
         stream.getTracks().forEach(track => stream.removeTrack(track));
       }
-      // delete the mediaRecorder
-      mediaRecorder = undefined;
+      // delete the mediaRecorder.current
+      mediaRecorder.current = undefined;
     }
   }
 
