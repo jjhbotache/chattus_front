@@ -271,7 +271,13 @@ export default function Chat() {
   }
 
   function stopRecording() {
-    mediaRecorder.current && mediaRecorder.current.stop();
+    if (mediaRecorder.current) {
+      mediaRecorder.current.stop();
+      const stream = mediaRecorder.current.stream;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    }
   }
 
   return(
