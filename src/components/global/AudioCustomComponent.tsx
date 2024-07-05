@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { color, motion } from 'framer-motion';
+import {  motion } from 'framer-motion';
 import styled from 'styled-components';
 import { colors } from '../../globalStyle';
 
@@ -59,7 +59,7 @@ export default function AudioCustomComponent({src}:{src:string}) {
   };
 
   const resetAudOnSpecificSecond = (
-    event: MouseEvent | TouchEvent | PointerEvent,
+    _: MouseEvent | TouchEvent | PointerEvent,
     info: { offset: { x: number; y: number } }
   ) => {
     // Calculate the second where the user released the progress indicator
