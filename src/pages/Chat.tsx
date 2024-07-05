@@ -235,12 +235,11 @@ export default function Chat() {
         }
         mediaRecorder.current.onstop = () => {
           const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-          const seconds = audioBlob.size / 1024 / 1024;
           const reader = new FileReader();
           reader.onloadend = () => {
             // if the recording is less than 3 secs, don't send it
-
-            if (seconds < 3) {
+            const seconds = audioBlob.size / 8192;
+            if (seconds < 1) {
               console.log("Recording is less than 3 secs");
               return;
             }
