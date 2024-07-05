@@ -189,14 +189,13 @@ const AudioContainer = styled.div`
   }
 
   .progress-indicator {
-    width: 1em;
-    height: 1em;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background-color: ${colors.shadow};
     position: absolute;
-    top: -150%;
-    left: 0;
-    
+    right: -6px;
+    top: -4px;
   }
 
   .time-info {
