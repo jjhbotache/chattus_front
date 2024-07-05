@@ -223,50 +223,55 @@ export default function Chat() {
 
   function recordAndSendAud() {
 
-    
-    // record 3 secs of audio
+    // ask permission to use the microphone
     navigator.mediaDevices
       .getUserMedia({ audio: true })
       .then((stream:MediaStream) => {
-        mediaRecorder.current = new MediaRecorder(stream);
-        mediaRecorder.current.start();
-        let audioChunks:Blob[] = [];
-        mediaRecorder.current.ondataavailable = (e) => {
-          audioChunks.push(e.data);
-        }
-        mediaRecorder.current.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            // if the recording is less than 3 secs, don't send it
-            const seconds = audioBlob.size / 8192;
-            if (seconds < 1) {
-              console.log("Recording is less than 3 secs");
-              return;
-            }
-
-            const base64String = reader.result;
-            ws.send(
-              JSON.stringify({
-                message: encoder(base64String as string, room),
-                kind: 'audio',
-                extension: "webm",
-              }),
-            )
-            setTextToSend("");
-            setOptionsDeployed(false);
-          }
-          reader.readAsDataURL(audioBlob);
-        }
+        record(stream);
       })
+
+    function record(stream:MediaStream) {
+      mediaRecorder.current = new MediaRecorder(stream);
+      
+      
+      let audioChunks:Blob[] = [];
+
+      mediaRecorder.current.ondataavailable = (e) => {audioChunks.push(e.data);}
+      mediaRecorder.current.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          // if the recording is less than 3 secs, don't send it
+          const seconds = audioBlob.size/19655;
+
+          
+          if (seconds < 1) {
+            console.log("Recording is less than 1 secs");
+            return;
+          }
+
+          const base64String = reader.result;
+          ws.send(
+            JSON.stringify({
+              message: encoder(base64String as string, room),
+              kind: 'audio',
+              extension: "webm",
+            }),
+          )
+          setTextToSend("");
+          setOptionsDeployed(false);
+        }
+        reader.readAsDataURL(audioBlob);
+      }
+
+      mediaRecorder.current.start();
+    }
 
 
   }
 
   function stopRecording() {
-    if (mediaRecorder.current !== null) {
-      mediaRecorder.current.stop();
-    }
+    mediaRecorder.current && mediaRecorder.current.stop();
   }
 
   return(
