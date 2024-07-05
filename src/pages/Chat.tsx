@@ -22,7 +22,6 @@ export default function Chat() {
   const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const [recording, setRecording] = useState<boolean>(false);
 
   useEffect(() => {
     if (ws !== null) {
@@ -222,13 +221,10 @@ export default function Chat() {
   }
 
   function recordAndSendAud() {
+    console.log("Recording started");
+    return;
     
 
-    // if its already recording, stop it
-    if (recording) {
-      stopRecording();
-      return;
-    }
     
     // record 3 secs of audio
     navigator.mediaDevices
@@ -236,19 +232,21 @@ export default function Chat() {
       .then((stream:MediaStream) => {
         mediaRecorder.current = new MediaRecorder(stream);
         mediaRecorder.current.start();
-        setRecording(true);
         let audioChunks:Blob[] = [];
         mediaRecorder.current.ondataavailable = (e) => {
           audioChunks.push(e.data);
         }
         mediaRecorder.current.onstop = () => {
           const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+          const seconds = audioBlob.size / 1024 / 1024;
           const reader = new FileReader();
           reader.onloadend = () => {
             // if the recording is less than 3 secs, don't send it
 
-            if (reader.result === null) return;
-            if ((reader.result as string).length < (30*1000)) return;
+            if (seconds < 3) {
+              console.log("Recording is less than 3 secs");
+              return;
+            }
 
             const base64String = reader.result;
             ws.send(
@@ -269,11 +267,12 @@ export default function Chat() {
   }
 
   function stopRecording() {
+    console.log("Recording stopped");
+    return ;
     
-    if (mediaRecorder.current) {
-      mediaRecorder.current.stop();
-      setRecording(false);
-    }
+    // if (mediaRecorder.current !== null) {
+    //   mediaRecorder.current.stop();
+    // }
   }
 
   return(
@@ -343,11 +342,16 @@ export default function Chat() {
           ?<i onClick={sendMessage} className=" fi fi-ss-paper-plane-top"></i>
           :<motion.div
           onTapStart={recordAndSendAud}
-          onMouseUp={stopRecording}
-          onTapCancel={stopRecording}
-          onTouchEnd={stopRecording}
+
+          onPointerUp={stopRecording}
+          whileTap={{
+            scale: 5,
+            backgroundColor: colors.secondary,
+            borderRadius: "50%",
+          }}
+          
           >
-            <i className={`fi fi-rr-microphone voiceIcon ${recording && "recording"}`}></i>
+            <i className={`fi fi-rr-microphone voiceIcon `}></i>
           </motion.div>
         }
 
@@ -567,10 +571,6 @@ const Container = styled.div`
       padding: .1em;
       border-radius: 50%;
 
-      &.recording{
-        background: red;
-        transform: scale(5);
-      }
     }
   }
 `;
