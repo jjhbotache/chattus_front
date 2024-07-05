@@ -276,7 +276,11 @@ export default function Chat() {
       const stream = mediaRecorder.stream;
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
+        // delete the stream
+        stream.getTracks().forEach(track => stream.removeTrack(track));
       }
+      // delete the mediaRecorder
+      mediaRecorder = undefined;
     }
   }
 
