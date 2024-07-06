@@ -10,6 +10,7 @@ import base64ToBlob from "../helpers/base64ToBlob";
 import getMimeType from "../helpers/getMimeTipe";
 import { motion } from "framer-motion";
 import AudioCustomComponent from "../components/global/AudioCustomComponent";
+import { toast } from "react-toastify";
 
 
 
@@ -25,14 +26,21 @@ export default function Chat() {
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
 
   useEffect(() => {
+    // reset the chatFiles
+    localStorage.setItem("chatFiles", "[]");
     if (ws !== null) {
       ws.onmessage = (event:MessageEvent) => {
         const response = JSON.parse(event.data);
-        console.log(response);
+        console.log("response: ",response);
         
         if (response.msgs) {
+          const files = JSON.parse(localStorage.getItem("chatFiles") || "[]");
+
           const decodedMsgs = response.msgs.map((msg:Message) => {  
-            let msgText = msg.sender === 'System' ? msg.message : decoder(msg.message, room)
+            
+            let msgText = msg.sender === 'System' || msg.message.includes("FILE(")
+              ? msg.message 
+              : decoder(msg.message, room)
 
             const msgObjToReturn = {
               ...msg,
@@ -44,18 +52,44 @@ export default function Chat() {
               msgObjToReturn.message = realMsg;
               msgObjToReturn.replyingTo = replayedText;
             }
-            
+            if(msgText.includes("FILE(")){
+              const realMsg = msgText.replace("FILE(","").split(")")[0];
+              msgObjToReturn.message = files[parseInt(realMsg)];
+            }
+
             
             return msgObjToReturn;
           })
+
+          
+          
+          
+          // save unparsed files in LS
+          decodedMsgs.forEach((msg:Message) => {
+            if(msg.kind === "message") return;
+            if(msg.message?.includes("FILE(")) return;
+            // verify if the file is already saved
+            if(files.includes(msg.message)) return;
+
+            msg.message && files.push(msg.message);
+          })
+          localStorage.setItem("chatFiles", JSON.stringify(files));
+          
+          
+          console.log("decodedMsgs: ",decodedMsgs);
+          
           setMsgs(decodedMsgs);
         }
 
       }
-
       ws.onclose = () => {
         console.log("ws connection closed");
         navigate('/');
+      }
+      ws.onerror = (error) => {
+        console.log("ws connection error", error);
+        navigate('/');
+        toast.error("Failed to connect to the room. Verify the code and try again.");
       }
 
     }else{
@@ -98,6 +132,11 @@ export default function Chat() {
             kind: 'message',
           }),
         )
+
+      
+      
+      
+      
       setTextToSend("");
       setOptionsDeployed(false);
       setMsgToReply(null);

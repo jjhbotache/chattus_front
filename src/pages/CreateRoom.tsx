@@ -7,6 +7,7 @@ import { useDispatch } from 'react-redux';
 import { setRoom } from '../redux/slices/roomSlice';
 import { setWebsocket } from '../redux/slices/websocketSlice';
 import LoadingScreen from './LoadingScreen';
+import { toast } from 'react-toastify';
 // import { Container, Title, Button, Input } from '../styles';
 
 interface Features {
@@ -56,8 +57,8 @@ export default function CreateRoom() {
           navigate('/')
         };
         wsConnection.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          // Handle any WebSocket errors
+          console.log("Failed to connect to the room", error);
+          toast.error('Failed to connect to the room')
         };
 
         

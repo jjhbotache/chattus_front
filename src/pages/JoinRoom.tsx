@@ -7,6 +7,7 @@ import { setWebsocket } from '../redux/slices/websocketSlice';
 import { setRoom } from '../redux/slices/roomSlice';
 import { useNavigate } from 'react-router-dom';
 import LoadingScreen from './LoadingScreen';
+import { toast } from 'react-toastify';
 const codeLength = 6;
 export default function JoinRoom() {
   const [inputCode, setInputCode] = useState<string>('');
@@ -34,8 +35,9 @@ export default function JoinRoom() {
       };
       wsConnection.onerror = (error) => {
         setLoading(false)
-        console.error('WebSocket error:', error);
-        // Handle any WebSocket errors
+        toast.error("Failed to connect to the room. Verify the code and try again.");
+        console.log(error);
+        
       };
     }
   }
