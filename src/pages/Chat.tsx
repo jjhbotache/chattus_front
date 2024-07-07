@@ -120,18 +120,6 @@ export default function Chat() {
       prompt("Are you sure you want to leave the chat? Your messages will be lost");
     };
 
-    const onScreenCapture = () => {
-      console.log("screen capture");
-      
-      // document.body.style.display = 'none';
-      // alert('Por favor, no tomes capturas de pantalla de este contenido.');
-      // document.body.style.display = 'block';
-    }
-
-    const hideAll = () => {
-      // document.body.style.display = 'none';
-      console.log("hiding");      
-    } 
 
     setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
 
