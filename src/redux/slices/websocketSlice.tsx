@@ -7,6 +7,9 @@ const websocketSlice = createSlice({
     setWebsocket: (_, action) => {
       return action.payload;
     },
+    setWebsocketUrl: (_, action) => {
+      return action.payload;
+    } 
   },
 });
 

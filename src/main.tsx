@@ -28,6 +28,15 @@ window.addEventListener('focus', ()=>{
 });
 
 window.addEventListener('keydown',(event)=>{
+  console.log(event.key);
+  if (event.key.includes("Audio")) {
+    hideAll();
+  }
+  
+  if (event.key.includes("F")) {
+    hideAll();
+  }
+  
   if (event.key === 'Meta' || event.key === 'Windows') {
       console.log('La tecla Command (Mac) ha sido presionada.');
       hideAll();

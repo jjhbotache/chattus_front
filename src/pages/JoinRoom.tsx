@@ -2,7 +2,7 @@ import styled, { keyframes } from 'styled-components';
 import { colors } from '../globalStyle';
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { websocketAPI } from '../appConstants';
+import { fetchAPI, websocketAPI } from '../appConstants';
 import { setWebsocket } from '../redux/slices/websocketSlice';
 import { setRoom } from '../redux/slices/roomSlice';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -26,24 +26,19 @@ export default function JoinRoom() {
     // set the room code in the store and the ws
     if (code.length === codeLength ) {
       setLoading(true)
-      const wsConnection = new WebSocket(websocketAPI + `/${encodeURIComponent(code)}`);
-      wsConnection.onopen = () => {
+      const url = websocketAPI + `/${encodeURIComponent(code)}`;
+      const response = await fetch(fetchAPI + `/verify_room/${encodeURIComponent(code)}`);
+      const data = await response.json();
+      if (data.room_exists) {
+        dispacher(setWebsocket(url));
+        dispacher(setRoom(code));
+        navigate('/chat');
+      }else{
         setLoading(false)
-        dispacher(setWebsocket(wsConnection))
-        dispacher(setRoom(code))
-        navigate('/chat')
-      };
-      wsConnection.onclose = () => {
-        dispacher(setWebsocket(null))
-        dispacher(setRoom(""))
-        navigate('/')
-      };
-      wsConnection.onerror = (error) => {
-        setLoading(false)
-        toast.error("Failed to connect to the room");
-        console.log("Failed to connect to the room", error);
-        
-      };
+        dispacher(setWebsocket(null));
+        dispacher(setRoom(""));
+        toast.error("Room not found!");  
+      }
     }
   }
 

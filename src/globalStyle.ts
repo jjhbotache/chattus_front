@@ -11,11 +11,11 @@ export const colors = {
 export const GlobalStyle = createGlobalStyle`
   @font-face {
     font-family: 'Nasalization';
-    src: url('/fonts/nasalization-rg.otf') ;
+    src: url('/fonts/nasalization-rg.otf' ) format('truetype');
   }
   @font-face {
     font-family: 'King';
-    src: url('/fonts/KIN668.TTF') ;
+    src: url('/fonts/KIN668.TTF') format('truetype') ;
   }
 
   body,html,#root {

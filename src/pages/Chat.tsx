@@ -2,7 +2,7 @@ import styled from "styled-components";
 import { colors } from "../globalStyle";
 import { Message } from "../interface/msgInterface";
 import { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import encoder from "../helpers/encoder";
 import { useNavigate } from "react-router-dom";
 import decoder from "../helpers/decoder";
@@ -13,8 +13,10 @@ import AudioCustomComponent from "../components/global/AudioCustomComponent";
 import { toast } from "react-toastify";
 import MicroRecorder from "../components/chat/MicroRecorder";
 import StorageBar from "../components/chat/StorageBar";
-import { maxLocalStorageSize } from "../appConstants";
+import { fetchAPI, maxLocalStorageSize } from "../appConstants";
 import { getLocalStorageUsage, verifyIfTextCanBeStored } from "../helpers/localStorageFunctions";
+import { setWebsocket } from "../redux/slices/websocketSlice";
+import { setRoom } from "../redux/slices/roomSlice";
 
 
 
@@ -24,23 +26,41 @@ export default function Chat() {
   const [textToSend, setTextToSend] = useState<string>("");
   const [msgs, setMsgs] = useState<Message[]>([]);
   const [optionsDeployed, setOptionsDeployed] = useState<boolean>(false);
-  const ws:WebSocket = useSelector((state: any) => state.websocket);
+  const wsUrl:string = useSelector((state: any) => state.websocket);
+  const ws = useRef<WebSocket | null>(null);
   const room:string = useSelector((state: any) => state.room);
   const navigate = useNavigate();
   const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
   const [storagePercentage, setStoragePercentage] = useState<number>(1);
   const readyToSendAud = useRef<boolean>(false);
+  const code = useSelector((state: any) => state.room);
+
+  const dispacher = useDispatch();
+  
   
   
 
   useEffect(() => {
+    // start to connect to the ws
+    fetch(fetchAPI + `/verify_room/${encodeURIComponent(code)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.room_exists) {
+          dispacher(setWebsocket(null));
+          dispacher(setRoom(""));
+          toast.error("Room not found!");
+          navigate("/join-room");
+        }
+      });
+
+    ws.current = new WebSocket(wsUrl);
 
 
     // reset the chatFiles
     localStorage.setItem("chatFiles", "[]");
-    if (ws !== null) {
-      ws.onmessage = (event:MessageEvent) => {
+    if (ws.current !== null) {
+      ws.current.onmessage = (event:MessageEvent) => {
         const response = JSON.parse(event.data);
         // console.log("response: ",response); // TO DEBUG
         
@@ -93,11 +113,12 @@ export default function Chat() {
         }
 
       }
-      ws.onclose = () => {
+      ws.current.onclose = () => {
         console.log("ws connection closed");
+        toast.error("Connection closed");
         navigate('/');
       }
-      ws.onerror = (error) => {
+      ws.current.onerror = (error) => {
         console.log("ws connection error", error);
         navigate('/');
         toast.error("Failed to connect to the room. Verify the code and try again.");
@@ -144,8 +165,12 @@ export default function Chat() {
 
     setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
   }, [msgs]);
-
   function sendMessage(){
+    if (!ws.current) {
+      toast.error("Not connected");
+      return;
+    };
+
     setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
 
     if (textToSend.length > 0) {
@@ -162,7 +187,7 @@ export default function Chat() {
         return;
       }
 
-      ws.send(
+      ws.current.send(
         JSON.stringify({
           message: encodedMessage,
           kind: 'message',
@@ -180,6 +205,7 @@ export default function Chat() {
   }
 
   function downloadFile(base64:string) {
+    
     const [prefix, base64Content] = base64.split(',');
     const mimeType = getMimeType(prefix);
     console.log(mimeType);
@@ -205,24 +231,33 @@ export default function Chat() {
 
 
   function onAddVideo(){
+    if (!ws.current) {
+      toast.error("Not connected");
+      return;
+    };
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "video/*";
     input.click();
     input.onchange = (e) => {
+      
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const fileExtension = file.name.split('.').pop();
         // convert the file to a base64 string
         const reader = new FileReader();
         reader.onloadend = () => {
+          if (!ws.current) {
+            toast.error("Not connected");
+            return;
+          };
           // reader.result contains the base64 string
           const base64String = reader.result;
           if (!verifyIfTextCanBeStored(base64String as string)) {
             toast.error("No enought storage, try smaller msgs");
             return;
           }
-          ws.send(
+          ws.current.send(
             JSON.stringify({
               message: encoder(base64String as string, room),
               kind: 'video',
@@ -238,6 +273,10 @@ export default function Chat() {
   }
 
   function onAddFile(){
+    if (!ws.current) {
+      toast.error("Not connected");
+      return;
+    };
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "*/*";
@@ -249,6 +288,10 @@ export default function Chat() {
         // convert the file to a base64 string
         const reader = new FileReader();
         reader.onloadend = () => {
+          if (!ws.current) {
+            toast.error("Not connected");
+            return;
+          };
           // reader.result contains the base64 string
           const base64String = reader.result;
            // Aquí puedes hacer lo que necesites con la cadena base64
@@ -256,7 +299,7 @@ export default function Chat() {
             toast.error("No enought storage, try smaller msgs");
             return;
           }
-          ws.send(
+          ws.current.send(
             JSON.stringify({
               message: encoder(base64String as string, room),
               kind: 'file',
@@ -272,7 +315,10 @@ export default function Chat() {
   }
 
   function onAddImg(){
-    
+    if (!ws.current) {
+      toast.error("Not connected");
+      return;
+    };
 
     // open the gallery
     const input = document.createElement("input");
@@ -286,6 +332,10 @@ export default function Chat() {
         // convert the file to a base64 string
         const reader = new FileReader();
         reader.onloadend = () => {
+          if (!ws.current) {
+            toast.error("Not connected");
+            return;
+          };
           // reader.result contains the base64 string
           const base64String = reader.result;
           if (!verifyIfTextCanBeStored(base64String as string)) {
@@ -294,7 +344,7 @@ export default function Chat() {
             
             return;
           }
-          ws.send(
+          ws.current.send(
             JSON.stringify({
               message: encoder(base64String as string, room),
               kind: 'image',
@@ -310,6 +360,10 @@ export default function Chat() {
   }
 
   function recordAndSendAud() {
+    if (!ws.current) {
+      toast.error("Not connected");
+      return;
+    };
     readyToSendAud.current = true;
     toast.dismiss();
     toast.info(`Recording...
@@ -333,6 +387,10 @@ export default function Chat() {
         const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
         const reader = new FileReader();
         reader.onloadend = () => {
+          if (!ws.current) {
+            toast.error("Not connected");
+            return;
+          };
           // if the recording is less than 3 secs, don't send it
           const seconds = audioBlob.size/19655;
 
@@ -353,7 +411,7 @@ export default function Chat() {
               toast.error("No enought storage, try smaller msgs");
               return;
             }
-            ws.send(
+            ws.current.send(
               JSON.stringify({
                 message: encoder(base64String as string, room),
                 kind: 'audio',

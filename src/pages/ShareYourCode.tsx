@@ -8,23 +8,27 @@ import QRCode from "react-qr-code";
 
 export default function ShareYourCode() {
   const code = useSelector((state: any) => state.room);
-  const wsConnection:WebSocket = useSelector((state: any) => state.websocket);
+  const wsUrl:string = useSelector((state: any) => state.websocket);
   const [visibleCode, setvisibleCode] = useState<boolean>(false);
   const navigate = useNavigate();
   const link = useRef<string>(`${window.location.origin}/join-room?code=${code}`);
 
 
   useEffect(() => {
-    if (!code || wsConnection == null) {
-      navigate('/')
-    }else{
-      wsConnection.onmessage = (event:MessageEvent) => {
-        const response:MessageResponse = JSON.parse(event.data)
-        if (response.msgs) {
-          navigate('/chat')
-        }
+    // connect to websocket and wait for someone to join
+
+    const ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+      console.log('ws connected')
+    }
+    ws.onmessage = (event:MessageEvent) => {
+      const response:MessageResponse = JSON.parse(event.data)
+      if (response.msgs) {
+        navigate('/chat')
       }
-      
+    }
+    ws.onerror = (event) => {
+      console.log('ws error', event)
     }
   }, [code, navigate])
 

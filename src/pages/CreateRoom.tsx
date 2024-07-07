@@ -45,28 +45,14 @@ export default function CreateRoom() {
       })
     }).then(res => res.json()).then(async res => {
       if (res.room_code) {
-        // join to the room
-        const wsConnection = new WebSocket(websocketAPI + `/${encodeURIComponent(res.room_code)}`);
-        wsConnection.onopen = () => {
-          dispacher(setWebsocket(wsConnection))
-          dispacher(setRoom(res.room_code))
-          navigate('/share-code')
-        };
-        wsConnection.onclose = () => {
-          dispacher(setWebsocket(null))
-          dispacher(setRoom(""))
-          navigate('/')
-        };
-        wsConnection.onerror = (error) => {
-          console.log("Failed to connect to the room", error);
-          toast.error('Failed to connect to the room')
-        };
-
-        
+        const wsUrl = websocketAPI + `/${encodeURIComponent(res.room_code)}`
+        dispacher(setWebsocket(wsUrl))
+        dispacher(setRoom(res.room_code))
+        navigate('/share-code')
       }else{
         throw new Error('Failed to create room')
       }
-    }).catch(err => {
+      }).catch(err => {
       toast.error('Failed to create room')
       console.error(err)
     })
