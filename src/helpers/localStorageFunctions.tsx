@@ -28,7 +28,7 @@ export function getAvailableSpace() {
     } catch (e) {
         localStorage.removeItem(key);
     }
-
+    localStorage.removeItem(key);
     return min; // return the size in bytes
 }
 

@@ -60,7 +60,7 @@ export default function Chat() {
       }
       return msgObjToReturn;
     })
-    console.log("decoded: ",decodedMsgs);
+    // console.log("decoded: ",decodedMsgs);
     
     
     
@@ -141,7 +141,7 @@ export default function Chat() {
           ws.current = new WebSocket(wsUrl);
           ws.current.onmessage = (event:MessageEvent) => {
             const response = JSON.parse(event.data);
-            // console.log("response: ",response); // TO DEBUG
+            console.log("response: ",response); // TO DEBUG
     
             // if the response has msgs and without any msg with "message" undefined, update the msgs
             if (response.msgs && !response.msgs.some((msg:Message) => msg.message === undefined)) {
