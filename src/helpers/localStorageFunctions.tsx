@@ -7,28 +7,36 @@ import { maxLocalStorageSize } from "../appConstants";
  * 
  * @returns El tamaño máximo de almacenamiento en localStorage en bytes
  */
-export function getAvaliableSpace() {
-    
-    let testKey = 'test';
-    let testData = 'x';
+export function getAvailableSpace() {
+    const key = "test";
+    const max = 1024 * 1024 * 50; // 50 MB, límite razonable
+    let min = 0;
+    let mid;
+
     try {
-        // Intentar llenar el localStorage
-        while (true) {
-            localStorage.setItem(testKey, testData);
-            testData += testData; // Duplica el tamaño del dato en cada iteración
+        // Inicialmente intentamos grandes incrementos
+        for (let step = max; step > 0; step = Math.floor(step / 2)) {
+            mid = min + step;
+            try {
+                localStorage.setItem(key, "0".repeat(mid));
+                min = mid;
+            } catch (e) {
+                // Error al establecer item, reduce step
+            }
         }
+        localStorage.removeItem(key);
     } catch (e) {
-        // Se ha alcanzado el límite
-        let max = testData.length / 2; // La última operación fallida duplicó el tamaño de datos
-        localStorage.removeItem(testKey);
-        return max;
+        localStorage.removeItem(key);
     }
+
+    return min; // return the size in bytes
 }
+
 
 
 export function verifyIfTextCanBeStored(text: string) {
 //  test how much space is missing by filling the localStorage and then removing the test data
-    let leftSpace = getAvaliableSpace()    
+    let leftSpace = getAvailableSpace()    
     // console.log("msg length: ", text.length);
     // console.log("left space: ", leftSpace);
     
@@ -39,8 +47,12 @@ export function verifyIfTextCanBeStored(text: string) {
 }
 
 function getMissingPercentage() {
-    let leftSpace = getAvaliableSpace();
+    let leftSpace = getAvailableSpace();
     let max = maxLocalStorageSize;
+
+    console.log("left space: ", leftSpace);
+    console.log("max: ", max);
+    
     return (leftSpace / max) * 100;
 }
 

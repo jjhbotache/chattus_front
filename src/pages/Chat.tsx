@@ -120,6 +120,9 @@ export default function Chat() {
     });
 
 
+    // save the files in the LS
+    console.log(JSON.stringify(files));
+    localStorage.clear();
     localStorage.setItem("chatFiles", JSON.stringify(files));
     localStorage.setItem("chatFilesLinked", JSON.stringify(filesLinked));
 
@@ -138,11 +141,11 @@ export default function Chat() {
           ws.current = new WebSocket(wsUrl);
           ws.current.onmessage = (event:MessageEvent) => {
             const response = JSON.parse(event.data);
-            console.log("response: ",response); // TO DEBUG
+            // console.log("response: ",response); // TO DEBUG
     
             // if the response has msgs and without any msg with "message" undefined, update the msgs
             if (response.msgs && !response.msgs.some((msg:Message) => msg.message === undefined)) {
-              console.log("updating msgs");
+              // console.log("updating msgs");
               setMsgs(
                 onMsgs(response)
               );
@@ -202,11 +205,17 @@ export default function Chat() {
 
   useEffect(() => {
     // update the storage bar
+    // get the ls files
     setStorePercentage(getAvaliableSpacePercentage());
 
     // scroll to the bottom of the messages container
     if (msgsContainerRef.current !== null) {
-      msgsContainerRef.current.scrollTop = msgsContainerRef.current.scrollHeight;
+      // if is on bottom or a little bit up, scroll to the bottom
+      if (msgsContainerRef.current.scrollHeight - msgsContainerRef.current.scrollTop <= msgsContainerRef.current.clientHeight + 200) {
+        msgsContainerRef.current.scrollTop = msgsContainerRef.current.scrollHeight;
+      }else{
+        toast.info("New messages", {autoClose: 1000});
+      }
     }
 
   }, [msgs]);
