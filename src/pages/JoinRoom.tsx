@@ -60,8 +60,6 @@ export default function JoinRoom() {
   useEffect(() => {
     if (searchParams.has('code')) {
       setInputCode(searchParams.get('code') as string);
-      console.log('code', searchParams.get('code'));
-      
       joinRoom(searchParams.get('code') as string);
     }
   }, []);

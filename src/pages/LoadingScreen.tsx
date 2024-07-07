@@ -38,16 +38,16 @@ const LoadingContainer = styled.div`
   }
 `;
 
-const Grid = styled.div<{ columns: number }>`
+const Grid = styled.div<{ $columns: number }>`
   display: grid;
-  grid-template-columns: repeat(${props => props.columns}, 1fr);
+  grid-template-columns: repeat(${props => props.$columns}, 1fr);
   gap: 1px;
   width: 100%;
   height: 100%;
 `;
 
-const Cell = styled.div<{ alive: boolean }>`
-  background-color: ${props => props.alive ? colors.light : colors.primary};
+const Cell = styled.div<{ $alive: string }>`
+  background-color: ${props => props.$alive=="true" ? colors.light : colors.primary};
   transition: background-color 0.3s ease;
 `;
 
@@ -125,12 +125,12 @@ const LoadingScreen: React.FC = () => {
         Loading...
         <small>Click to create life</small>
       </span>
-      <Grid columns={gridSize.cols}>
+      <Grid $columns={gridSize.cols}>
         {grid.flatMap((row, i) =>
           row.map((cell, j) => (
             <Cell
               key={`${i}-${j}`}
-              alive={cell}
+              $alive={cell.toString()}
               onClick={() => handleCellClick(i, j)}
             />
           ))
