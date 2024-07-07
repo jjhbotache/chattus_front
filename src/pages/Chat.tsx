@@ -136,7 +136,17 @@ export default function Chat() {
 
   const onReload = (event: BeforeUnloadEvent) => {
     event.preventDefault();
-    prompt("Are you sure you want to leave the chat? Your messages will be lost");
+    if (prompt("Are you sure you want to leave the chat? Your messages will be lost")){
+      cleanupLocalStorage();
+      ws.current?.close();
+      setMsgs([]);
+      setStorePercentage(0);
+      dispatch(setWebsocket(null));
+      dispatch(setRoom(""));
+      return true;
+    }
+
+
   };
 
   const updateStorageAndScroll = () => {
