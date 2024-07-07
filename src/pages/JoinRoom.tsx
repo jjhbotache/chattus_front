@@ -62,7 +62,7 @@ export default function JoinRoom() {
   return loading ? <LoadingScreen />:
   (
     <Container>
-      {scanning && <Scanner onScan={scaned}/>}
+      {scanning && <Scanner onScan={scaned}  />}
 
       <h1 className='title'>Join Room</h1>
       <div className="codeInputContainer">

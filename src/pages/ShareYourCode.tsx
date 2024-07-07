@@ -15,6 +15,9 @@ export default function ShareYourCode() {
 
 
   useEffect(() => {
+    if (!code) {
+      navigate('/')
+    }
     // connect to websocket and wait for someone to join
 
     const ws = new WebSocket(wsUrl);

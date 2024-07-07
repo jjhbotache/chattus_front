@@ -5,7 +5,7 @@ import websocketSlice from "./slices/websocketSlice";
 const store = configureStore({
   reducer: {
     room:roomSlice,
-    websocket: websocketSlice
+    websocket: websocketSlice,
   }
 })
 

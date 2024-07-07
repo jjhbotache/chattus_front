@@ -5,10 +5,8 @@
 - qr y empezar por link ✅
 - evitar que se puedan tomar pantallazos (did what i could) ✅
 - arreglar storage bar ✅
+- arreglar responder con aud ✅
+- arreglar autor msgs ✅
+- usar indexDB / mejorar DB ✅
 - permitir borrar archivos
 - config de la sala
-
-- arreglar responder con aud
-- arreglar autor msgs ✅
-- delete beep from qr reader
-- usar indexDB

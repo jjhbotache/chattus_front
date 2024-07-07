@@ -1,510 +1,393 @@
-import styled from "styled-components";
-import { colors } from "../globalStyle";
-import { Message } from "../interface/msgInterface";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import encoder from "../helpers/encoder";
 import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { toast } from "react-toastify";
+import { motion } from "framer-motion";
+
+import { colors } from "../globalStyle";
+import { Message } from "../interface/msgInterface";
+import encoder from "../helpers/encoder";
 import decoder from "../helpers/decoder";
 import base64ToBlob from "../helpers/base64ToBlob";
 import getMimeType from "../helpers/getMimeTipe";
-import { motion } from "framer-motion";
-import AudioCustomComponent from "../components/global/AudioCustomComponent";
-import { toast } from "react-toastify";
-import MicroRecorder from "../components/chat/MicroRecorder";
-import StorageBar from "../components/chat/StorageBar";
-import { fetchAPI } from "../appConstants";
-import { getAvaliableSpacePercentage, verifyIfTextCanBeStored } from "../helpers/localStorageFunctions";
+// import { getAvailableSpace, getAvaliableSpacePercentage, verifyIfTextCanBeStored } from "../helpers/localStorageFunctions";
 import { setWebsocket } from "../redux/slices/websocketSlice";
 import { setRoom } from "../redux/slices/roomSlice";
+import { fetchAPI } from "../appConstants";
 
+import AudioCustomComponent from "../components/global/AudioCustomComponent";
+import MicroRecorder from "../components/chat/MicroRecorder";
+import StorageBar from "../components/chat/StorageBar";
+import { getAvailableSpaceInBytes as getAvailableSpace, getAvaliableSpacePercentage, verifyIfTextCanBeStored } from "../helpers/storage";
 
-
-let mediaRecorder:MediaRecorder | undefined = undefined; 
+let mediaRecorder: MediaRecorder | undefined = undefined;
 
 export default function Chat() {
   const [textToSend, setTextToSend] = useState<string>("");
-  const inputRef = useRef<HTMLInputElement>(null);
   const [msgs, setMsgs] = useState<Message[]>([]);
   const [optionsDeployed, setOptionsDeployed] = useState<boolean>(false);
-  const wsUrl:string = useSelector((state: any) => state.websocket);
-  const ws = useRef<WebSocket | null>(null);
-  const room:string = useSelector((state: any) => state.room);
-  const navigate = useNavigate();
-  const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
-  const readyToSendAud = useRef<boolean>(false);
-  const code = useSelector((state: any) => state.room);
   const [storePercentage, setStorePercentage] = useState<number>(0);
 
-  const dispacher = useDispatch();
-  
-  
-  function onMsgs(response:any):Message[] {
-    // get the files from the LS
-    const files = JSON.parse(localStorage.getItem("chatFiles") || "[]");
-    let filesLinked = JSON.parse(localStorage.getItem("chatFilesLinked") || "{}");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const msgsContainerRef = useRef<HTMLDivElement>(null);
+  const ws = useRef<WebSocket | null>(null);
+  const readyToSendAud = useRef<boolean>(false);
+  const avaliableSpaceInBytes = useRef<number>(0);
 
-    
-
-    
-    
-    // decode the messages
-    
-    const decodedMsgs:Message[] = response.msgs.map((msg:Message) => {  
-      const msgObjToReturn = msg;
-      
-      // if is not from the system or a file, decode it
-      if (!(msg.sender === 'System' || msg.message.includes("FILE(")) ) {
-        msgObjToReturn.message = decoder(msg.message, room);
-      }
-      return msgObjToReturn;
-    })
-    // console.log("decoded: ",decodedMsgs);
-    
-    
-    
-    
-    // if the last message is a file, save it in LS
-    const lastMsg = decodedMsgs[decodedMsgs.length - 1];
-    if (lastMsg.kind !== "message" && lastMsg.sender !== "system") {
-      // if the file already exists, don't save it, link it
-      if (files.includes(lastMsg.message)) {
-        // link the file
-        const fileIndex = files.indexOf(lastMsg.message);
-        const numLinkedFiles = Object.keys(filesLinked).length || 0;
-        const newIndex = files.length;
-        const finalIndex = newIndex + numLinkedFiles;
-        
-        // key, will be the index from server, value will be the index from the files array
-        filesLinked = {
-          ...filesLinked,
-          [finalIndex]: fileIndex
-        };
-      }else{
-        files.push(lastMsg.message);
-      }
-    }
-    
-    // // parse the msgs
-    const parsedMsgs = decodedMsgs.map((msg: Message) => {
-      const msgObjToReturn = { ...msg };
-      const msgText = msg.message;
-
-      // decode the replayingTo
-      if (msgText.includes("REPLYINGTO(")) {
-      const [replayedText, realMsg] = msgText.replace("REPLYINGTO(", "").split(")");
-      msgObjToReturn.message = realMsg;
-      msgObjToReturn.replyingTo = replayedText;
-      }
-
-      // decode the files that are linked to LS
-      if (msgText.includes("FILE(")) {
-      const fromServerIndex = msgText.replace("FILE(", "").split(")")[0];
-      const index = parseInt(fromServerIndex);
-      // if the index is linked to a file, get the file
-
-      
-      if (Object.keys(filesLinked).includes(index.toString())) {
-        const indexFromLink = filesLinked[index.toString()];
-        const linkedFile = files[indexFromLink];
-        
-        
-        msgObjToReturn.message = linkedFile;
-      } else {
-        msgObjToReturn.message = files[index];
-      }
-      }
-
-      return msgObjToReturn;
-    });
+  const wsUrl: string = useSelector((state: any) => state.websocket);
+  const room: string = useSelector((state: any) => state.room);
+  const code = useSelector((state: any) => state.room);
+  const db = useRef<any>({
+    chatFiles: [],
+    chatFilesLinked: {}
+  })
 
 
-    // save the files in the LS
-    console.log(JSON.stringify(files));
-    localStorage.removeItem("test");
-    localStorage.setItem("chatFiles", JSON.stringify(files));
-    localStorage.setItem("chatFilesLinked", JSON.stringify(filesLinked));
-
-    return parsedMsgs;
-  }
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   useEffect(() => {
-    localStorage.removeItem("chatFiles");
-    localStorage.removeItem("chatFilesLinked");
-
-    // start to connect to the ws
-    fetch(fetchAPI + `/verify_room/${encodeURIComponent(code)}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.room_exists) {
-          ws.current = new WebSocket(wsUrl);
-          ws.current.onmessage = (event:MessageEvent) => {
-            const response = JSON.parse(event.data);
-            console.log("response: ",response); // TO DEBUG
-    
-            // if the response has msgs and without any msg with "message" undefined, update the msgs
-            if (response.msgs && !response.msgs.some((msg:Message) => msg.message === undefined)) {
-              // console.log("updating msgs");
-              setMsgs(
-                onMsgs(response)
-              );
-            }
-    
-          }
-          ws.current.onclose = () => {
-            console.log("ws connection closed");
-            toast.error("Connection closed");
-            navigate('/');
-          }
-          ws.current.onerror = (error) => {
-            console.log("ws connection error", error);
-            navigate('/');
-            toast.error("Failed to connect to the room. Verify the code and try again.");
-          }
-
-        }else{
-          dispacher(setWebsocket(null));
-          dispacher(setRoom(""));
-          toast.error("Room not found!");
-          navigate("/");
-        }
-      });
-
-    
-
-
-    
-
-
-    const onKeydown = (e:KeyboardEvent) => {
-      if (e.key === "Enter") {
-        sendMessage();
-      }
-    }
-
-    const onReload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      prompt("Are you sure you want to leave the chat? Your messages will be lost");
-    };
-
-
-
-    // listen to the enter key
-    window.addEventListener("keydown", onKeydown);
-    window.addEventListener('beforeunload', onReload);
-    
-    
-  
-
-    return () => {
-      window.removeEventListener("keydown", onKeydown);
-      window.removeEventListener('beforeunload', onReload);
-    }
+    initializeChat();
+    return cleanupChat;
   }, []);
 
   useEffect(() => {
-    // update the storage bar
-    // get the ls files
-    setStorePercentage(getAvaliableSpacePercentage());
-
-    // scroll to the bottom of the messages container
-    if (msgsContainerRef.current !== null) {
-      // if is on bottom or a little bit up, scroll to the bottom
-      if (msgsContainerRef.current.scrollHeight - msgsContainerRef.current.scrollTop <= msgsContainerRef.current.clientHeight + 200) {
-        msgsContainerRef.current.scrollTop = msgsContainerRef.current.scrollHeight;
-      }else{
-        toast.info("New messages", {autoClose: 1000});
-      }
-    }
-
+    updateStorageAndScroll();
   }, [msgs]);
 
-  function sendMessage(){
+  const initializeChat = () => {
+    cleanupLocalStorage();
+    initializeWebSocket();
+    setupEventListeners();
+  };
+
+  const cleanupChat = () => {
+    removeEventListeners();
+  };
+
+  const cleanupLocalStorage = () => {
+    localStorage.removeItem("chatFiles");
+    localStorage.removeItem("chatFilesLinked");
+    avaliableSpaceInBytes.current = getAvailableSpace(db.current);
+  };
+
+  const initializeWebSocket = () => {
+    fetch(`${fetchAPI}/verify_room/${encodeURIComponent(code)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.room_exists) {
+          setupWebSocket();
+        } else {
+          handleRoomNotFound();
+        }
+      });
+  };
+
+  const setupWebSocket = () => {
+    ws.current = new WebSocket(wsUrl);
+    ws.current.onmessage = handleWebSocketMessage;
+    ws.current.onclose = handleWebSocketClose;
+    ws.current.onerror = handleWebSocketError;
+  };
+
+  const handleWebSocketMessage = (event: MessageEvent) => {
+    const response = JSON.parse(event.data);
+    if (response.msgs && !response.msgs.some((msg: Message) => msg.message === undefined)) {
+      setMsgs(onMsgs(response));
+    }
+  };
+
+  const handleWebSocketClose = (event: CloseEvent) => {
+    console.log("ws connection closed", event);
+    toast.error("Connection closed");
+    navigate('/');
+  };
+
+  const handleWebSocketError = (error: Event) => {
+    console.log("ws connection error", error);
+    navigate('/');
+    toast.error("Failed to connect to the room. Verify the code and try again.");
+  };
+
+  const handleRoomNotFound = () => {
+    dispatch(setWebsocket(null));
+    dispatch(setRoom(""));
+    toast.error("Room not found!");
+    navigate("/");
+  };
+
+  const setupEventListeners = () => {
+    window.addEventListener("keydown", onKeydown);
+    window.addEventListener('beforeunload', onReload);
+  };
+
+  const removeEventListeners = () => {
+    window.removeEventListener("keydown", onKeydown);
+    window.removeEventListener('beforeunload', onReload);
+  };
+
+  const onKeydown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      sendMessage();
+    }
+  };
+
+  const onReload = (event: BeforeUnloadEvent) => {
+    event.preventDefault();
+    prompt("Are you sure you want to leave the chat? Your messages will be lost");
+  };
+
+  const updateStorageAndScroll = () => {
+    const newPercentage = getAvaliableSpacePercentage(db.current);
+    setStorePercentage(100 - (newPercentage * 100));
+    avaliableSpaceInBytes.current *= newPercentage;
+    scrollToBottom();
+  };
+
+  const scrollToBottom = () => {
+    if (msgsContainerRef.current) {
+      const { scrollHeight, scrollTop, clientHeight } = msgsContainerRef.current;
+      if (scrollHeight - scrollTop <= clientHeight + 1000) {
+        msgsContainerRef.current.scrollTop = scrollHeight;
+      } else {
+        toast.info("New messages", { autoClose: 1000 });
+      }
+    }
+  };
+
+  const onMsgs = (response: any): Message[] => {
+    // const files = JSON.parse(localStorage.getItem("chatFiles") || "[]");
+    // let filesLinked = JSON.parse(localStorage.getItem("chatFilesLinked") || "{}");
+
+    const { chatFiles, chatFilesLinked } = db.current;
+    const files = [...chatFiles];
+    const filesLinked = { ...chatFilesLinked}
+    
+
+    const decodedMsgs = response.msgs.map((msg: Message) => {
+      const msgObjToReturn = { ...msg };
+      if (!(msg.sender === 'System' || msg.message.includes("FILE("))) {
+        msgObjToReturn.message = decoder(msg.message, room);
+      }
+      return msgObjToReturn;
+    });
+
+    handleLastMessage(decodedMsgs[decodedMsgs.length - 1], files, filesLinked);
+    
+
+    const parsedMsgs = decodedMsgs.map((msg: Message): Message => {
+      const msgObjToReturn = { ...msg };
+      const msgText = msg.message;
+  
+      if (msgText.includes("REPLYINGTO(")) {
+        const [replayedText, realMsg] = msgText.replace("REPLYINGTO(", "").split(")");
+        msgObjToReturn.message = realMsg;
+        msgObjToReturn.replyingTo = replayedText;
+      }
+  
+      if (msgText.includes("FILE(")) {
+        const fromServerIndex = msgText.replace("FILE(", "").split(")")[0];
+        const index = parseInt(fromServerIndex);
+        
+        if (Object.keys(filesLinked).includes(index.toString())) {
+          const indexFromLink = filesLinked[index.toString()];
+          msgObjToReturn.message = files[indexFromLink];
+        } else {
+          msgObjToReturn.message = files[index];
+        }
+      }
+  
+      return msgObjToReturn;
+    });
+
+    const newDb = { 
+      chatFiles: files,
+      chatFilesLinked: filesLinked
+     };
+    db.current = newDb;
+
+    return parsedMsgs;
+  };
+
+
+  const handleLastMessage = (lastMsg: Message, files: string[], filesLinked: Record<string, number>) => {
+      if (lastMsg.kind !== "message" && lastMsg.sender !== "system") {
+        
+          if (files.includes(lastMsg.message)) {
+              const fileIndex = files.indexOf(lastMsg.message);
+              const numLinkedFiles = Object.keys(filesLinked).length || 0;
+              const newIndex = files.length;
+              const finalIndex = newIndex + numLinkedFiles;
+              filesLinked[finalIndex] = fileIndex;
+              
+          } else {
+              files.push(lastMsg.message);
+          }
+      }
+  };
+
+
+
+
+  const sendMessage = () => {
     if (!ws.current) {
       toast.error("Not connected");
       return;
-    };
-
+    }
 
     if (textToSend.length > 0) {
       let msgToSend = textToSend;
-      if (msgToReply){
+      if (msgToReply) {
         const replayedText = msgToReply.kind === "message" ? msgToReply.message.substring(0, 15) : msgToReply.kind;
         msgToSend = `REPLYINGTO(${replayedText})${msgToSend}`;
       }
       const encodedMessage = encoder(msgToSend, room);
-      console.log("encodedMessage: ",encodedMessage);
-      
-      if (!verifyIfTextCanBeStored(encodedMessage as string)) {
-        toast.error("No enought storage, try smaller msgs");
+
+      if (!verifyIfTextCanBeStored(db.current,encodedMessage as string)) {
+        toast.error("Not enough storage, try smaller msgs");
         return;
       }
 
-      ws.current.send(
-        JSON.stringify({
-          message: encodedMessage,
-          kind: 'message',
-        }),
-      )
+      ws.current.send(JSON.stringify({
+        message: encodedMessage,
+        kind: 'message',
+      }));
 
-      
-      
-      
-      
       setTextToSend("");
       setOptionsDeployed(false);
       setMsgToReply(null);
     }
 
     inputRef.current?.focus();
-  }
+  };
 
-  function downloadFile(base64:string) {
-    
+  const downloadFile = (base64: string) => {
     const [prefix, base64Content] = base64.split(',');
     const mimeType = getMimeType(prefix);
-    console.log(mimeType);
-    
-
-    // Convierte base64 a Blob
     const blob = base64ToBlob(base64Content, mimeType || "");
-    console.log(blob);
-    
-
     const url = URL.createObjectURL(blob);
-    console.log(url);
-    
-
-    // download the file
     const a = document.createElement("a");
     a.href = url;
     a.download = `file.${mimeType?.split('/')[1] || "txt"}`;
     a.click();
+  };
 
-
-  }
-
-  function onAddVideo(){
+  const handleFileUpload = (fileType: string, accept: string) => {
     if (!ws.current) {
       toast.error("Not connected");
       return;
-    };
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "video/*";
-    input.click();
-    input.onchange = (e) => {
-      
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const fileExtension = file.name.split('.').pop();
-        // convert the file to a base64 string
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (!ws.current) {
-            toast.error("Not connected");
-            return;
-          };
-          // reader.result contains the base64 string
-          const base64String = reader.result;
-          if (!verifyIfTextCanBeStored(base64String as string)) {
-            toast.error("No enought storage, try smaller msgs");
-            return;
-          }
-          ws.current.send(
-            JSON.stringify({
-              message: encoder(base64String as string, room),
-              kind: 'video',
-              extension: fileExtension,
-            }),
-          )
-          setTextToSend("");
-          setOptionsDeployed(false);
-        };
-        reader.readAsDataURL(file);
-      }
     }
-  }
 
-  function onAddFile(){
-    if (!ws.current) {
-      toast.error("Not connected");
-      return;
-    };
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "*/*";
+    input.accept = accept;
     input.click();
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const fileExtension = file.name.split('.').pop();
-        // convert the file to a base64 string
         const reader = new FileReader();
         reader.onloadend = () => {
           if (!ws.current) {
             toast.error("Not connected");
             return;
-          };
-          // reader.result contains the base64 string
+          }
           const base64String = reader.result;
-           // Aquí puedes hacer lo que necesites con la cadena base64
-          if (!verifyIfTextCanBeStored(base64String as string)) {
-            toast.error("No enought storage, try smaller msgs");
+          if (!verifyIfTextCanBeStored(db.current,base64String as string)) {
+            toast.error("Not enough storage, try smaller msgs");
             return;
           }
-          ws.current.send(
-            JSON.stringify({
-              message: encoder(base64String as string, room),
-              kind: 'file',
-              extension: fileExtension,
-            }),
-          )
+          ws.current.send(JSON.stringify({
+            message: encoder(base64String as string, room),
+            kind: fileType,
+            extension: fileExtension,
+          }));
           setTextToSend("");
           setOptionsDeployed(false);
         };
         reader.readAsDataURL(file);
       }
-    }
-  }
+    };
+  };
 
-  function onAddImg(){
+  const onAddVideo = () => handleFileUpload('video', 'video/*');
+  const onAddFile = () => handleFileUpload('file', '*/*');
+  const onAddImg = () => handleFileUpload('image', 'image/*');
+
+  const recordAndSendAud = () => {
     if (!ws.current) {
       toast.error("Not connected");
       return;
-    };
-
-    // open the gallery
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.click();
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const fileExtension = file.name.split('.').pop();
-        // convert the file to a base64 string
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (!ws.current) {
-            toast.error("Not connected");
-            return;
-          };
-          // reader.result contains the base64 string
-          const base64String = reader.result;
-          if (!verifyIfTextCanBeStored(base64String as string)) {
-            toast.error("No enought storage, try smaller msgs");
-            console.log("file too big", (base64String as string).length);
-            
-            return;
-          }
-          ws.current.send(
-            JSON.stringify({
-              message: encoder(base64String as string, room),
-              kind: 'image',
-              extension: fileExtension,
-            }),
-          )
-          setTextToSend("");
-          setOptionsDeployed(false);
-        };
-        reader.readAsDataURL(file);
-      }
     }
-  }
-
-  function recordAndSendAud() {
-    if (!ws.current) {
-      toast.error("Not connected");
-      return;
-    };
     readyToSendAud.current = true;
     toast.dismiss();
-    toast.info(`Recording...
-      Drag to left to cancel`);
+    toast.info("Recording... Drag to left to cancel");
 
-    // ask permission to use the microphone
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream:MediaStream) => {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then((stream: MediaStream) => {
         record(stream);
-      })
+      });
+  };
 
-    function record(stream:MediaStream) {
-      mediaRecorder = new MediaRecorder(stream);
-      
-      
-      let audioChunks:Blob[] = [];
-      mediaRecorder.ondataavailable = (e) => {audioChunks.push(e.data);}
-      
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (!ws.current) {
-            toast.error("Not connected");
-            return;
-          };
-          // if the recording is less than 3 secs, don't send it
-          const seconds = audioBlob.size/19655;
-
-          
-          if (seconds < 1) {
-            console.log("Recording is less than 1 secs");
-            toast.dismiss();
-            toast.error("Record more!");
-            return;
-          }
-          toast.dismiss();
-          const base64String = reader.result;
-
-
-          
-          if (readyToSendAud.current){
-            if (!verifyIfTextCanBeStored(base64String as string)) {
-              toast.error("No enought storage, try smaller msgs");
-              return;
-            }
-            let msgToSend = base64String as string;
-            if (msgToReply){
-              const replayedText = msgToReply.kind === "message" ? msgToReply.message.substring(0, 15) : msgToReply.kind;
-              msgToSend = `REPLYINGTO(${replayedText})${msgToSend}`;
-            }
-            ws.current.send(
-              JSON.stringify({
-                message: encoder(msgToSend, room),
-                kind: 'audio',
-                extension: "webm",
-              }),
-            )
-          }else{
-            toast.warning("Recording canceled", {autoClose: 1000});
-          }
-          setTextToSend("");
-          setOptionsDeployed(false);
+  const record = (stream: MediaStream) => {
+    mediaRecorder = new MediaRecorder(stream);
+    let audioChunks: Blob[] = [];
+    mediaRecorder.ondataavailable = (e) => { audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (!ws.current) {
+          toast.error("Not connected");
+          return;
         }
-        reader.readAsDataURL(audioBlob);
-      }
+        const seconds = audioBlob.size / 19655;
+        if (seconds < 1) {
+          toast.dismiss();
+          toast.error("Record more!");
+          return;
+        }
+        toast.dismiss();
+        const base64String = reader.result;
+        if (readyToSendAud.current) {
+          if (!verifyIfTextCanBeStored(db.current,base64String as string)) {
+            toast.error("Not enough storage, try smaller msgs");
+            return;
+          }
+          let msgToSend = base64String as string;
+          if (msgToReply) {
+            const replayedText = msgToReply.kind === "message" ? msgToReply.message.substring(0, 15) : msgToReply.kind;
+            msgToSend = `REPLYINGTO(${replayedText})${msgToSend}`;
+          }
+          ws.current.send(JSON.stringify({
+            message: encoder(msgToSend, room),
+            kind: 'audio',
+            extension: "webm",
+          }));
+        } else {
+          toast.warning("Recording canceled", { autoClose: 1000 });
+        }
+        setTextToSend("");
+        setOptionsDeployed(false);
+      };
+      reader.readAsDataURL(audioBlob);
+    };
+    mediaRecorder.start();
+  };
 
-      mediaRecorder.start();
-    }
-  }
-
-
-  function stopRecording() {
+  const stopRecording = () => {
     if (mediaRecorder) {
       mediaRecorder.stop();
       const stream = mediaRecorder.stream;
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
-        // delete the stream
         stream.getTracks().forEach(track => stream.removeTrack(track));
       }
-      // delete the mediaRecorder
       mediaRecorder = undefined;
     }
-  }
+  };
 
   return(
     <Container>
