@@ -13,8 +13,6 @@ export function getAvailableSpaceInBytes(db: any) {
 
 export function getAvaliableSpacePercentage(db: any) {
     const avaliable = getAvailableSpaceInBytes(db) / maxSizeInBytes;
-    console.log("Avaliable space: ", avaliable, " %");
-    
     return avaliable;
 }
 

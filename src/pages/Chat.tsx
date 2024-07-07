@@ -300,6 +300,16 @@ export default function Chat() {
         const fileExtension = file.name.split('.').pop();
         const reader = new FileReader();
         reader.onloadend = () => {
+          let fileTypeToSend = fileType;
+          // get file type
+          const loadedFileType = file.type.split('/')[0];
+          console.log("loadedFileType", loadedFileType);
+
+          if (["audio", "video", "image"].includes(loadedFileType)) {
+            fileTypeToSend = loadedFileType;
+          }
+          
+
           if (!ws.current) {
             toast.error("Not connected");
             return;
@@ -311,7 +321,7 @@ export default function Chat() {
           }
           ws.current.send(JSON.stringify({
             message: encoder(base64String as string, room),
-            kind: fileType,
+            kind: fileTypeToSend,
             extension: fileExtension,
           }));
           setTextToSend("");
