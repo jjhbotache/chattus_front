@@ -1,14 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components"
 import { MessageResponse } from "../interface/responses";
+import { toast } from "react-toastify";
+import QRCode from "react-qr-code";
 
 export default function ShareYourCode() {
   const code = useSelector((state: any) => state.room);
   const wsConnection:WebSocket = useSelector((state: any) => state.websocket);
   const [visibleCode, setvisibleCode] = useState<boolean>(false);
   const navigate = useNavigate();
+  const link = useRef<string>(`${window.location.origin}/join-room?code=${code}`);
+
 
   useEffect(() => {
     if (!code || wsConnection == null) {
@@ -20,15 +24,22 @@ export default function ShareYourCode() {
           navigate('/chat')
         }
       }
+      
     }
   }, [code, navigate])
 
-  
+  function onCopyUrl() {
+    navigator.clipboard.writeText(link.current)
+    toast.success('Link copied to clipboard')
+  }
 
   return(
     <Container>
       <h1 className="title">Share your code</h1>
       <div className="middleContent">
+        <div className="qrContainer">
+          <QRCode value={link.current} />
+        </div>
         <span className="code">{visibleCode ? code : '******'}</span>
         <div className="icons">
           <i className={`fi fi-sr-eye${visibleCode
@@ -37,7 +48,7 @@ export default function ShareYourCode() {
             onClick={() => setvisibleCode (!visibleCode) }
           ></i>
           <i 
-          onClick={() => navigator.clipboard.writeText(code)}
+          onClick={onCopyUrl}
           className="fi fi-sr-copy-alt"></i>
         </div>
       </div>
@@ -59,11 +70,26 @@ const Container = styled.div`
   height: 90%;
   padding: 1em .1em;
   box-sizing: border-box;
+  .title{
+    font-size: 2em;
+  }
 
   .middleContent{
     display: flex;
     flex-direction: column;
     align-items: center;
+    .qrContainer{
+      width: 95%;
+      max-width: 300px;
+      aspect-ratio: 1/1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: .2em;
+      background-color: white;
+      box-sizing: border-box;
+      border-radius: .2em;
+    }
     .code{
       font-size: 3em;
       padding: .1em;

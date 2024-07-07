@@ -1,31 +1,36 @@
 import styled, { keyframes } from 'styled-components';
 import { colors } from '../globalStyle';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { websocketAPI } from '../appConstants';
 import { setWebsocket } from '../redux/slices/websocketSlice';
 import { setRoom } from '../redux/slices/roomSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import LoadingScreen from './LoadingScreen';
 import { toast } from 'react-toastify';
+import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
+
+
 const codeLength = 6;
 export default function JoinRoom() {
   const [inputCode, setInputCode] = useState<string>('');
   const [focusInput, setfocusInput] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [searchParams] = useSearchParams();
+  const [scanning, setScanning] = useState<boolean>(false);
 
   const dispacher = useDispatch();
   const navigate = useNavigate();
   
-  async function joinRoom(){
+  async function joinRoom(code: string) {
     // set the room code in the store and the ws
-    if (inputCode.length === codeLength) {
+    if (code.length === codeLength ) {
       setLoading(true)
-      const wsConnection = new WebSocket(websocketAPI + `/${encodeURIComponent(inputCode)}`);
+      const wsConnection = new WebSocket(websocketAPI + `/${encodeURIComponent(code)}`);
       wsConnection.onopen = () => {
         setLoading(false)
         dispacher(setWebsocket(wsConnection))
-        dispacher(setRoom(inputCode))
+        dispacher(setRoom(code))
         navigate('/chat')
       };
       wsConnection.onclose = () => {
@@ -35,16 +40,37 @@ export default function JoinRoom() {
       };
       wsConnection.onerror = (error) => {
         setLoading(false)
-        toast.error("Failed to connect to the room. Verify the code and try again.");
-        console.log(error);
+        toast.error("Failed to connect to the room");
+        console.log("Failed to connect to the room", error);
         
       };
     }
   }
 
+  function scaned(data:IDetectedBarcode[]) {
+    console.log('scanned', data);
+    const url = new URL(data[0].rawValue);
+    const code = url.searchParams.get('code');
+    
+    setInputCode(code as string);
+    setScanning(false);
+    joinRoom(code as string);    
+  }
+
+  useEffect(() => {
+    if (searchParams.has('code')) {
+      setInputCode(searchParams.get('code') as string);
+      console.log('code', searchParams.get('code'));
+      
+      joinRoom(searchParams.get('code') as string);
+    }
+  }, []);
+
   return loading ? <LoadingScreen />:
   (
     <Container>
+      {scanning && <Scanner onScan={scaned}/>}
+
       <h1 className='title'>Join Room</h1>
       <div className="codeInputContainer">
         <input type="text" 
@@ -68,12 +94,17 @@ export default function JoinRoom() {
           ))
         }
       </div>
-      <button className='btn' 
-        onClick={joinRoom}
-        disabled={inputCode.length !== codeLength}
-       >
-        Join
-      </button>
+      <div className='btnsContainer'>
+        <button className='btn qrBtn' onClick={()=>setScanning(!scanning)} >
+          <i className='fi fi-ss-qr-scan'></i>
+        </button>
+        <button className='btn' 
+          onClick={()=>joinRoom(inputCode)}
+          disabled={inputCode.length !== codeLength}
+        >
+          Join
+        </button>
+      </div>
     </Container>
   );
 };
@@ -153,4 +184,19 @@ const Container = styled.div`
       }
     }
   }
+
+  .btnsContainer{
+    display: flex;
+    justify-content: space-evenly;
+    width: 100%;
+    margin-top: 1em;
+    .qrBtn{
+      padding: .5em;
+      border-radius: .5em;
+      i{
+        font-size: 1em;
+      }
+    }
+  }
+
 `;

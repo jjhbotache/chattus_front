@@ -18,6 +18,7 @@ interface Features {
 
 
 
+
 export default function CreateRoom() {
   const [features, setFeatures] = useState<Features>({
     "Fast chat": false,
@@ -66,12 +67,14 @@ export default function CreateRoom() {
         throw new Error('Failed to create room')
       }
     }).catch(err => {
+      toast.error('Failed to create room')
       console.error(err)
     })
     .finally(() => {
       setLoading(false)
     })
   }
+
 
   return loading ? <LoadingScreen />:
   (

@@ -11,10 +11,15 @@ import getMimeType from "../helpers/getMimeTipe";
 import { motion } from "framer-motion";
 import AudioCustomComponent from "../components/global/AudioCustomComponent";
 import { toast } from "react-toastify";
+import MicroRecorder from "../components/chat/MicroRecorder";
+import StorageBar from "../components/chat/StorageBar";
+import { maxLocalStorageSize } from "../appConstants";
+import { getLocalStorageUsage, verifyIfTextCanBeStored } from "../helpers/localStorageFunctions";
 
 
 
 let mediaRecorder:MediaRecorder | undefined = undefined; 
+
 export default function Chat() {
   const [textToSend, setTextToSend] = useState<string>("");
   const [msgs, setMsgs] = useState<Message[]>([]);
@@ -24,14 +29,20 @@ export default function Chat() {
   const navigate = useNavigate();
   const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
+  const [storagePercentage, setStoragePercentage] = useState<number>(1);
+  const readyToSendAud = useRef<boolean>(false);
+  
+  
 
   useEffect(() => {
+
+
     // reset the chatFiles
     localStorage.setItem("chatFiles", "[]");
     if (ws !== null) {
       ws.onmessage = (event:MessageEvent) => {
         const response = JSON.parse(event.data);
-        console.log("response: ",response);
+        // console.log("response: ",response); // TO DEBUG
         
         if (response.msgs) {
           const files = JSON.parse(localStorage.getItem("chatFiles") || "[]");
@@ -76,7 +87,7 @@ export default function Chat() {
           localStorage.setItem("chatFiles", JSON.stringify(files));
           
           
-          console.log("decodedMsgs: ",decodedMsgs);
+          // console.log("decodedMsgs: ",decodedMsgs); // TO DEBUG
           
           setMsgs(decodedMsgs);
         }
@@ -104,11 +115,36 @@ export default function Chat() {
       }
     }
 
+    const onReload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      prompt("Are you sure you want to leave the chat? Your messages will be lost");
+    };
+
+    const onScreenCapture = () => {
+      console.log("screen capture");
+      
+      // document.body.style.display = 'none';
+      // alert('Por favor, no tomes capturas de pantalla de este contenido.');
+      // document.body.style.display = 'block';
+    }
+
+    const hideAll = () => {
+      // document.body.style.display = 'none';
+      console.log("hiding");      
+    } 
+
+    setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
+
     // listen to the enter key
     window.addEventListener("keydown", onKeydown);
+    window.addEventListener('beforeunload', onReload);
+    
+    
+  
 
     return () => {
       window.removeEventListener("keydown", onKeydown);
+      window.removeEventListener('beforeunload', onReload);
     }
   }, []);
 
@@ -117,21 +153,33 @@ export default function Chat() {
     if (msgsContainerRef.current !== null) {
       msgsContainerRef.current.scrollTop = msgsContainerRef.current.scrollHeight;
     }
+
+    setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
   }, [msgs]);
 
   function sendMessage(){
+    setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
+
     if (textToSend.length > 0) {
       let msgToSend = textToSend;
       if (msgToReply){
         const replayedText = msgToReply.kind === "message" ? msgToReply.message.substring(0, 15) : msgToReply.kind;
         msgToSend = `REPLYINGTO(${replayedText})${msgToSend}`;
       }
+      const encodedMessage = encoder(msgToSend, room);
+      console.log("encodedMessage: ",encodedMessage);
+      
+      if (!verifyIfTextCanBeStored(encodedMessage as string)) {
+        toast.error("No enought storage, try smaller msgs");
+        return;
+      }
+
       ws.send(
-          JSON.stringify({
-            message: encoder(msgToSend, room),
-            kind: 'message',
-          }),
-        )
+        JSON.stringify({
+          message: encodedMessage,
+          kind: 'message',
+        }),
+      )
 
       
       
@@ -182,7 +230,10 @@ export default function Chat() {
         reader.onloadend = () => {
           // reader.result contains the base64 string
           const base64String = reader.result;
-          console.log(base64String); // Aquí puedes hacer lo que necesites con la cadena base64
+          if (!verifyIfTextCanBeStored(base64String as string)) {
+            toast.error("No enought storage, try smaller msgs");
+            return;
+          }
           ws.send(
             JSON.stringify({
               message: encoder(base64String as string, room),
@@ -198,7 +249,6 @@ export default function Chat() {
     }
   }
 
-
   function onAddFile(){
     const input = document.createElement("input");
     input.type = "file";
@@ -213,7 +263,11 @@ export default function Chat() {
         reader.onloadend = () => {
           // reader.result contains the base64 string
           const base64String = reader.result;
-          console.log(base64String); // Aquí puedes hacer lo que necesites con la cadena base64
+           // Aquí puedes hacer lo que necesites con la cadena base64
+          if (!verifyIfTextCanBeStored(base64String as string)) {
+            toast.error("No enought storage, try smaller msgs");
+            return;
+          }
           ws.send(
             JSON.stringify({
               message: encoder(base64String as string, room),
@@ -230,6 +284,8 @@ export default function Chat() {
   }
 
   function onAddImg(){
+    
+
     // open the gallery
     const input = document.createElement("input");
     input.type = "file";
@@ -244,7 +300,12 @@ export default function Chat() {
         reader.onloadend = () => {
           // reader.result contains the base64 string
           const base64String = reader.result;
-          console.log(base64String); // Aquí puedes hacer lo que necesites con la cadena base64
+          if (!verifyIfTextCanBeStored(base64String as string)) {
+            toast.error("No enought storage, try smaller msgs");
+            console.log("file too big", (base64String as string).length);
+            
+            return;
+          }
           ws.send(
             JSON.stringify({
               message: encoder(base64String as string, room),
@@ -261,6 +322,10 @@ export default function Chat() {
   }
 
   function recordAndSendAud() {
+    readyToSendAud.current = true;
+    toast.dismiss();
+    toast.info(`Recording...
+      Drag to left to cancel`);
 
     // ask permission to use the microphone
     navigator.mediaDevices
@@ -274,8 +339,8 @@ export default function Chat() {
       
       
       let audioChunks:Blob[] = [];
-
       mediaRecorder.ondataavailable = (e) => {audioChunks.push(e.data);}
+      
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
         const reader = new FileReader();
@@ -286,17 +351,30 @@ export default function Chat() {
           
           if (seconds < 1) {
             console.log("Recording is less than 1 secs");
+            toast.dismiss();
+            toast.error("Record more!");
             return;
           }
-
+          toast.dismiss();
           const base64String = reader.result;
-          ws.send(
-            JSON.stringify({
-              message: encoder(base64String as string, room),
-              kind: 'audio',
-              extension: "webm",
-            }),
-          )
+
+
+          
+          if (readyToSendAud.current){
+            if (!verifyIfTextCanBeStored(base64String as string)) {
+              toast.error("No enought storage, try smaller msgs");
+              return;
+            }
+            ws.send(
+              JSON.stringify({
+                message: encoder(base64String as string, room),
+                kind: 'audio',
+                extension: "webm",
+              }),
+            )
+          }else{
+            toast.warning("Recording canceled", {autoClose: 1000});
+          }
           setTextToSend("");
           setOptionsDeployed(false);
         }
@@ -305,9 +383,8 @@ export default function Chat() {
 
       mediaRecorder.start();
     }
-
-
   }
+
 
   function stopRecording() {
     if (mediaRecorder) {
@@ -325,6 +402,8 @@ export default function Chat() {
 
   return(
     <Container>
+      <StorageBar porcentaje={storagePercentage} />
+
       <div className="msgsContainer" ref={msgsContainerRef}>
         {msgs.map((msg, index) => (
           <motion.div 
@@ -392,19 +471,7 @@ export default function Chat() {
         {
           textToSend.length > 0 
           ?<i onClick={sendMessage} className=" fi fi-ss-paper-plane-top"></i>
-          :<motion.div
-          onTapStart={recordAndSendAud}
-
-          onPointerUp={stopRecording}
-          whileTap={{
-            scale: 5,
-            backgroundColor: colors.secondary,
-            borderRadius: "50%",
-          }}
-          
-          >
-            <i className={`fi fi-rr-microphone voiceIcon `}></i>
-          </motion.div>
+          :<MicroRecorder recordAndSendAud={recordAndSendAud} stopRecording={stopRecording} onSetCancel={v=>{readyToSendAud.current = v}} />
         }
 
         {
@@ -621,6 +688,11 @@ const Container = styled.div`
       background: ${colors.accent};
       padding: .1em;
       border-radius: 50%;
+      &:active, &:focus, &:hover{
+        outline: none;
+        box-shadow: none;
+        border: none;
+      }
 
     }
   }
