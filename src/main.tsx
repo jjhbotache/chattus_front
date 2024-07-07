@@ -6,7 +6,6 @@ import { Provider } from 'react-redux'
 import store from './redux/store'
 import { Slide, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css';
-import { hideAll, showAll } from './helpers/visibilityFucntions'
 
 
 
