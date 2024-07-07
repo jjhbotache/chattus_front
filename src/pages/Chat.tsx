@@ -122,7 +122,7 @@ export default function Chat() {
 
     // save the files in the LS
     console.log(JSON.stringify(files));
-    localStorage.clear();
+    localStorage.removeItem("test");
     localStorage.setItem("chatFiles", JSON.stringify(files));
     localStorage.setItem("chatFilesLinked", JSON.stringify(filesLinked));
 
@@ -466,9 +466,14 @@ export default function Chat() {
               toast.error("No enought storage, try smaller msgs");
               return;
             }
+            let msgToSend = base64String as string;
+            if (msgToReply){
+              const replayedText = msgToReply.kind === "message" ? msgToReply.message.substring(0, 15) : msgToReply.kind;
+              msgToSend = `REPLYINGTO(${replayedText})${msgToSend}`;
+            }
             ws.current.send(
               JSON.stringify({
-                message: encoder(base64String as string, room),
+                message: encoder(msgToSend, room),
                 kind: 'audio',
                 extension: "webm",
               }),

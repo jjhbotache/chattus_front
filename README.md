@@ -9,4 +9,6 @@
 - config de la sala
 
 - arreglar responder con aud
-- arreglar autor msgs
+- arreglar autor msgs ✅
+- delete beep from qr reader
+- usar indexDB
