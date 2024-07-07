@@ -6,9 +6,11 @@ import { useSelector } from 'react-redux';
 
 export default function Main() {
   const navigate = useNavigate();
-  const ws:WebSocket = useSelector((state: any) => state.websocket);
+  const wsUrl:string = useSelector((state: any) => state.websocket);
 
   useEffect(() => {
+    const ws = new WebSocket(wsUrl);
+
     if (ws !== null) {
       ws.onclose = () => {
         navigate('/');

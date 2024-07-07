@@ -28,7 +28,7 @@ window.addEventListener('focus', ()=>{
 });
 
 window.addEventListener('keydown',(event)=>{
-  console.log(event.key);
+  // console.log(event.key);
   if (event.key.includes("Audio")) {
     hideAll();
   }

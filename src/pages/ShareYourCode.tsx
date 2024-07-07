@@ -12,6 +12,7 @@ export default function ShareYourCode() {
   const [visibleCode, setvisibleCode] = useState<boolean>(false);
   const navigate = useNavigate();
   const link = useRef<string>(`${window.location.origin}/join-room?code=${code}`);
+  const msgsLen = useRef<number | null>(null);
 
 
   useEffect(() => {
@@ -23,6 +24,8 @@ export default function ShareYourCode() {
     }
     ws.onmessage = (event:MessageEvent) => {
       const response:MessageResponse = JSON.parse(event.data)
+      console.log('ws message', response);
+      
       if (response.msgs) {
         navigate('/chat')
       }

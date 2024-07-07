@@ -50,7 +50,7 @@ export default function Chat() {
           dispacher(setWebsocket(null));
           dispacher(setRoom(""));
           toast.error("Room not found!");
-          navigate("/join-room");
+          navigate("/");
         }
       });
 
