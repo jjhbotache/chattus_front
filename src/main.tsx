@@ -12,18 +12,18 @@ import { hideAll, showAll } from './helpers/visibilityFucntions'
 
 document.addEventListener('visibilitychange', ()=>{
   console.log('Visibility has changed');
-  // document.visibilityState === 'visible'
-  //   ?showAll()
-  //   :hideAll();
+  document.visibilityState === 'visible'
+    ?showAll()
+    :hideAll();
 });
 
 window.addEventListener('blur', ()=>{
-  console.log('Window is now blur');
-  // hideAll();
+  // console.log('Window is now blur');
+  hideAll();
 });
 
 window.addEventListener('focus', ()=>{
-  console.log('Window is now focus');
+  // console.log('Window is now focus');
   showAll();
 });
 

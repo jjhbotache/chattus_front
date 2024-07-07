@@ -1,15 +1,5 @@
-export function getLocalStorageUsage() {
-  let total = 0;
-  for (let key in localStorage) {
-      if (localStorage.hasOwnProperty(key)) {
-          const item = localStorage.getItem(key);
-          if (item !== null) {
-              total += item.length;
-          }
-      }
-  }
-  return total;
-}
+import { maxLocalStorageSize } from "../appConstants";
+
 
 
 /**
@@ -17,7 +7,7 @@ export function getLocalStorageUsage() {
  * 
  * @returns El tamaño máximo de almacenamiento en localStorage en bytes
  */
-export function getMaxLocalStorageSize() {
+export function getAvaliableSpace() {
     
     let testKey = 'test';
     let testData = 'x';
@@ -36,8 +26,24 @@ export function getMaxLocalStorageSize() {
 }
 
 
-export function verifyIfTextCanBeStored(text: string, currentUsage: number = getLocalStorageUsage()) {
-  let usage = currentUsage + text.length;
-  let max = getMaxLocalStorageSize();
-  return usage <= max;
+export function verifyIfTextCanBeStored(text: string) {
+//  test how much space is missing by filling the localStorage and then removing the test data
+    let leftSpace = getAvaliableSpace()    
+    // console.log("msg length: ", text.length);
+    // console.log("left space: ", leftSpace);
+    
+    
+    return leftSpace >= text.length;
+//   let max = getMaxLocalStorageSize();
+//   return usage <= max;
+}
+
+function getMissingPercentage() {
+    let leftSpace = getAvaliableSpace();
+    let max = maxLocalStorageSize;
+    return (leftSpace / max) * 100;
+}
+
+export function getAvaliableSpacePercentage() {
+    return 100 - getMissingPercentage();
 }

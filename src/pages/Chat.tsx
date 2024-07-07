@@ -13,8 +13,8 @@ import AudioCustomComponent from "../components/global/AudioCustomComponent";
 import { toast } from "react-toastify";
 import MicroRecorder from "../components/chat/MicroRecorder";
 import StorageBar from "../components/chat/StorageBar";
-import { fetchAPI, maxLocalStorageSize } from "../appConstants";
-import { getLocalStorageUsage, verifyIfTextCanBeStored } from "../helpers/localStorageFunctions";
+import { fetchAPI } from "../appConstants";
+import { getAvaliableSpacePercentage, verifyIfTextCanBeStored } from "../helpers/localStorageFunctions";
 import { setWebsocket } from "../redux/slices/websocketSlice";
 import { setRoom } from "../redux/slices/roomSlice";
 
@@ -24,6 +24,7 @@ let mediaRecorder:MediaRecorder | undefined = undefined;
 
 export default function Chat() {
   const [textToSend, setTextToSend] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const [msgs, setMsgs] = useState<Message[]>([]);
   const [optionsDeployed, setOptionsDeployed] = useState<boolean>(false);
   const wsUrl:string = useSelector((state: any) => state.websocket);
@@ -32,21 +33,134 @@ export default function Chat() {
   const navigate = useNavigate();
   const msgsContainerRef = useRef<HTMLDivElement>(null);
   const [msgToReply, setMsgToReply] = useState<Message | null>(null);
-  const [storagePercentage, setStoragePercentage] = useState<number>(1);
   const readyToSendAud = useRef<boolean>(false);
   const code = useSelector((state: any) => state.room);
+  const [storePercentage, setStorePercentage] = useState<number>(0);
 
   const dispacher = useDispatch();
   
   
-  
+  function onMsgs(response:any):Message[] {
+    // get the files from the LS
+    const files = JSON.parse(localStorage.getItem("chatFiles") || "[]");
+    let filesLinked = JSON.parse(localStorage.getItem("chatFilesLinked") || "{}");
+
+    
+
+    
+    
+    // decode the messages
+    
+    const decodedMsgs:Message[] = response.msgs.map((msg:Message) => {  
+      const msgObjToReturn = msg;
+      
+      // if is not from the system or a file, decode it
+      if (!(msg.sender === 'System' || msg.message.includes("FILE(")) ) {
+        msgObjToReturn.message = decoder(msg.message, room);
+      }
+      return msgObjToReturn;
+    })
+    console.log("decoded: ",decodedMsgs);
+    
+    
+    
+    
+    // if the last message is a file, save it in LS
+    const lastMsg = decodedMsgs[decodedMsgs.length - 1];
+    if (lastMsg.kind !== "message" && lastMsg.sender !== "system") {
+      // if the file already exists, don't save it, link it
+      if (files.includes(lastMsg.message)) {
+        // link the file
+        const fileIndex = files.indexOf(lastMsg.message);
+        const numLinkedFiles = Object.keys(filesLinked).length || 0;
+        const newIndex = files.length;
+        const finalIndex = newIndex + numLinkedFiles;
+        
+        // key, will be the index from server, value will be the index from the files array
+        filesLinked = {
+          ...filesLinked,
+          [finalIndex]: fileIndex
+        };
+      }else{
+        files.push(lastMsg.message);
+      }
+    }
+    
+    // // parse the msgs
+    const parsedMsgs = decodedMsgs.map((msg: Message) => {
+      const msgObjToReturn = { ...msg };
+      const msgText = msg.message;
+
+      // decode the replayingTo
+      if (msgText.includes("REPLYINGTO(")) {
+      const [replayedText, realMsg] = msgText.replace("REPLYINGTO(", "").split(")");
+      msgObjToReturn.message = realMsg;
+      msgObjToReturn.replyingTo = replayedText;
+      }
+
+      // decode the files that are linked to LS
+      if (msgText.includes("FILE(")) {
+      const fromServerIndex = msgText.replace("FILE(", "").split(")")[0];
+      const index = parseInt(fromServerIndex);
+      // if the index is linked to a file, get the file
+
+      
+      if (Object.keys(filesLinked).includes(index.toString())) {
+        const indexFromLink = filesLinked[index.toString()];
+        const linkedFile = files[indexFromLink];
+        
+        
+        msgObjToReturn.message = linkedFile;
+      } else {
+        msgObjToReturn.message = files[index];
+      }
+      }
+
+      return msgObjToReturn;
+    });
+
+
+    localStorage.setItem("chatFiles", JSON.stringify(files));
+    localStorage.setItem("chatFilesLinked", JSON.stringify(filesLinked));
+
+    return parsedMsgs;
+  }
 
   useEffect(() => {
+    localStorage.removeItem("chatFiles");
+    localStorage.removeItem("chatFilesLinked");
+
     // start to connect to the ws
     fetch(fetchAPI + `/verify_room/${encodeURIComponent(code)}`)
       .then(res => res.json())
       .then(data => {
-        if (!data.room_exists) {
+        if (data.room_exists) {
+          ws.current = new WebSocket(wsUrl);
+          ws.current.onmessage = (event:MessageEvent) => {
+            const response = JSON.parse(event.data);
+            console.log("response: ",response); // TO DEBUG
+    
+            // if the response has msgs and without any msg with "message" undefined, update the msgs
+            if (response.msgs && !response.msgs.some((msg:Message) => msg.message === undefined)) {
+              console.log("updating msgs");
+              setMsgs(
+                onMsgs(response)
+              );
+            }
+    
+          }
+          ws.current.onclose = () => {
+            console.log("ws connection closed");
+            toast.error("Connection closed");
+            navigate('/');
+          }
+          ws.current.onerror = (error) => {
+            console.log("ws connection error", error);
+            navigate('/');
+            toast.error("Failed to connect to the room. Verify the code and try again.");
+          }
+
+        }else{
           dispacher(setWebsocket(null));
           dispacher(setRoom(""));
           toast.error("Room not found!");
@@ -54,80 +168,10 @@ export default function Chat() {
         }
       });
 
-    ws.current = new WebSocket(wsUrl);
+    
 
 
-    // reset the chatFiles
-    localStorage.setItem("chatFiles", "[]");
-    if (ws.current !== null) {
-      ws.current.onmessage = (event:MessageEvent) => {
-        const response = JSON.parse(event.data);
-        // console.log("response: ",response); // TO DEBUG
-        
-        if (response.msgs) {
-          const files = JSON.parse(localStorage.getItem("chatFiles") || "[]");
-
-          const decodedMsgs = response.msgs.map((msg:Message) => {  
-            
-            let msgText = msg.sender === 'System' || msg.message.includes("FILE(")
-              ? msg.message 
-              : decoder(msg.message, room)
-
-            const msgObjToReturn = {
-              ...msg,
-              message: msgText,
-            }
-
-            if(msgText.includes("REPLYINGTO(")){
-              const [replayedText, realMsg] = msgText.replace("REPLYINGTO(","").split(")");
-              msgObjToReturn.message = realMsg;
-              msgObjToReturn.replyingTo = replayedText;
-            }
-            if(msgText.includes("FILE(")){
-              const realMsg = msgText.replace("FILE(","").split(")")[0];
-              msgObjToReturn.message = files[parseInt(realMsg)];
-            }
-
-            
-            return msgObjToReturn;
-          })
-
-          
-          
-          
-          // save unparsed files in LS
-          decodedMsgs.forEach((msg:Message) => {
-            if(msg.kind === "message") return;
-            if(msg.message?.includes("FILE(")) return;
-            // verify if the file is already saved
-            if(files.includes(msg.message)) return;
-
-            msg.message && files.push(msg.message);
-          })
-          localStorage.setItem("chatFiles", JSON.stringify(files));
-          
-          
-          // console.log("decodedMsgs: ",decodedMsgs); // TO DEBUG
-          
-          setMsgs(decodedMsgs);
-        }
-
-      }
-      ws.current.onclose = () => {
-        console.log("ws connection closed");
-        toast.error("Connection closed");
-        navigate('/');
-      }
-      ws.current.onerror = (error) => {
-        console.log("ws connection error", error);
-        navigate('/');
-        toast.error("Failed to connect to the room. Verify the code and try again.");
-      }
-
-    }else{
-      console.log("No ws connection found");
-      navigate('/');
-    }
+    
 
 
     const onKeydown = (e:KeyboardEvent) => {
@@ -142,7 +186,6 @@ export default function Chat() {
     };
 
 
-    setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
 
     // listen to the enter key
     window.addEventListener("keydown", onKeydown);
@@ -158,20 +201,22 @@ export default function Chat() {
   }, []);
 
   useEffect(() => {
+    // update the storage bar
+    setStorePercentage(getAvaliableSpacePercentage());
+
     // scroll to the bottom of the messages container
     if (msgsContainerRef.current !== null) {
       msgsContainerRef.current.scrollTop = msgsContainerRef.current.scrollHeight;
     }
 
-    setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
   }, [msgs]);
+
   function sendMessage(){
     if (!ws.current) {
       toast.error("Not connected");
       return;
     };
 
-    setStoragePercentage((getLocalStorageUsage() / maxLocalStorageSize) * 100);
 
     if (textToSend.length > 0) {
       let msgToSend = textToSend;
@@ -202,6 +247,8 @@ export default function Chat() {
       setOptionsDeployed(false);
       setMsgToReply(null);
     }
+
+    inputRef.current?.focus();
   }
 
   function downloadFile(base64:string) {
@@ -228,7 +275,6 @@ export default function Chat() {
 
 
   }
-
 
   function onAddVideo(){
     if (!ws.current) {
@@ -448,7 +494,7 @@ export default function Chat() {
 
   return(
     <Container>
-      <StorageBar porcentaje={storagePercentage} />
+      <StorageBar porcentaje={storePercentage} />
 
       <div className="msgsContainer" ref={msgsContainerRef}>
         {msgs.map((msg, index) => (
@@ -513,7 +559,7 @@ export default function Chat() {
           <i onClick={()=>setOptionsDeployed(true)} className="fi fi-sr-angle-circle-right"></i>
         </>
         }
-        <input type="text" className="msg" value={textToSend} onChange={(e) => setTextToSend(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (sendMessage())}  />
+        <input type="text" className="msg" value={textToSend} onChange={(e) => setTextToSend(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (sendMessage())} ref={inputRef} />
         {
           textToSend.length > 0 
           ?<i onClick={sendMessage} className=" fi fi-ss-paper-plane-top"></i>

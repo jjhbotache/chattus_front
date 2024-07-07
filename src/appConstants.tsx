@@ -1,4 +1,4 @@
-import { getMaxLocalStorageSize } from "./helpers/localStorageFunctions";
+import { getAvaliableSpace } from "./helpers/localStorageFunctions";
 
 const realApiUrl = 'chattus-back.onrender.com';
 const devApiUrl = 'localhost:8000';
@@ -14,4 +14,4 @@ export const websocketAPI = websocketPrefix + apiUrl + '/ws';
 
 // clean all localStorage
 localStorage.clear();
-export const maxLocalStorageSize = getMaxLocalStorageSize();
+export const maxLocalStorageSize = getAvaliableSpace();

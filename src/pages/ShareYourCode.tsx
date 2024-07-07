@@ -26,6 +26,7 @@ export default function ShareYourCode() {
       console.log('ws message', response);
       
       if (response.msgs) {
+        ws.close();
         navigate('/chat')
       }
     }
@@ -36,7 +37,7 @@ export default function ShareYourCode() {
 
   function onCopyUrl() {
     navigator.clipboard.writeText(link.current)
-    toast.success('Link copied to clipboard')
+    toast.success('Link copied to clipboard',{autoClose: 2000})
   }
 
   return(
