@@ -12,7 +12,6 @@ export default function ShareYourCode() {
   const [visibleCode, setvisibleCode] = useState<boolean>(false);
   const navigate = useNavigate();
   const link = useRef<string>(`${window.location.origin}/join-room?code=${code}`);
-  const msgsLen = useRef<number | null>(null);
 
 
   useEffect(() => {
