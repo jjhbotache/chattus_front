@@ -152,7 +152,6 @@ export default function Chat() {
   const handleRoomNotFound = () => {
     dispatch(setWebsocket(null));
     dispatch(setRoom(""));
-    toast.error("Room not found!");
     navigate("/");
   };
 
