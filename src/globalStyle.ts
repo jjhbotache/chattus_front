@@ -1,4 +1,4 @@
-import { createGlobalStyle } from 'styled-components';
+import { createGlobalStyle, keyframes } from 'styled-components';
 
 export const colors = {
   primary: '#1C0221',
@@ -7,6 +7,15 @@ export const colors = {
   accent: '#1C023D',
   shadow: '#6A0BFF',
 };
+
+const shining_shadow = keyframes`
+  0%,100%{
+    box-shadow: 0 0 .2em ${colors.shadow};
+  }
+  50%{
+    box-shadow: 0 0 .7em ${colors.shadow};
+  }
+`;
 
 export const GlobalStyle = createGlobalStyle`
   @font-face {
@@ -25,6 +34,7 @@ export const GlobalStyle = createGlobalStyle`
     color: ${colors.light};
     height: 100%;
     width: 100vw;
+    overflow-x: hidden;
     background: linear-gradient(
     90deg,
     ${colors.primary} 0%,
@@ -70,6 +80,8 @@ export const GlobalStyle = createGlobalStyle`
     border-radius: 9999em;
     border: none;
     box-shadow: 0 0 .4em ${colors.shadow};
+    cursor: pointer;
+    animation: ${shining_shadow} 4s infinite;
   }
 
 
@@ -83,6 +95,26 @@ export const GlobalStyle = createGlobalStyle`
       font-family: "King";
       font-size: .8em;
       margin: .5em 0;
+    }
+  }
+
+  .tooltip {
+    position: absolute;
+    opacity: 0;
+    z-index: 9999;
+    background: #222;
+    border-radius: 1em;
+    padding: .5em;
+    margin: .5em;
+    transition: all .3s;
+    cursor: pointer;
+    display:none;
+
+    &.open{
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+
     }
   }
 

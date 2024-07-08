@@ -135,8 +135,8 @@ export default function Chat() {
     }
   };
 
-  const handleWebSocketClose = (event: CloseEvent) => {
-    console.log("ws connection closed", event);
+  const handleWebSocketClose = (_: CloseEvent) => {
+    toast.dismiss();
     toast.error("Connection closed");
     dispatch(setWebsocket(null));
     dispatch(setRoom(""));

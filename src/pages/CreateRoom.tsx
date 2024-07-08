@@ -9,8 +9,14 @@ import { setWebsocket } from '../redux/slices/websocketSlice';
 import LoadingScreen from './LoadingScreen';
 import { toast } from 'react-toastify';
 import { RoomConfigInterface } from '../interface/roomConfigInterface';
+import Tooltip from '../components/createRoom/Tooltip';
 
-
+const tooltipInfo = {
+  "Max number users in room": "Set the maximum number of users allowed in the room. (Maximum: 10)",
+  "Max secs of inactivity": "Set the maximum seconds of inactivity allowed in the room. If any message is sent after this time, the room will be closed.",
+  "Max msgs in room": "Set the maximum number of messages allowed in the room. After this number, the first messages will be deleted (Maximum: 100)",
+  "Mandatory focus": "Enable or disable mandatory focus in the room. If any user loses focus, the room will be closed."
+};
 
 
 
@@ -77,7 +83,9 @@ export default function CreateRoom() {
             <div className="featureRow" key={featureName}>
               <label htmlFor={featureName}>
                 <div>
-                  <i className='fi fi-sr-info'></i>
+                  <Tooltip label={tooltipInfo[featureName]}>
+                    <i className='fi fi-sr-info'></i>
+                  </Tooltip>
                   {featureName}
                   {
                     typeof value === "boolean" && <input type="checkbox" id={featureName} checked={value} onChange={(e) => setFeatures({ ...features, [key]: e.target.checked })} />
