@@ -2,22 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { colors } from '../globalStyle';
 import { useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { setRoom } from '../redux/slices/roomSlice';
+import { setWebsocket } from '../redux/slices/websocketSlice';
 
 export default function Main() {
   const navigate = useNavigate();
-  const wsUrl:string = useSelector((state: any) => state.websocket);
+  const dispacher = useDispatch();
 
   useEffect(() => {
-    const ws = new WebSocket(wsUrl);
-
-    if (ws !== null) {
-      ws.onclose = () => {
-        navigate('/');
-      }
-      ws.onmessage = (_:MessageEvent) => {
-      }
-    }
+    dispacher(setRoom(""))
+    dispacher(setWebsocket(null))
   }, []);
   
   return (

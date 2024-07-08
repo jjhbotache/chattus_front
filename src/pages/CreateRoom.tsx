@@ -8,22 +8,18 @@ import { setRoom } from '../redux/slices/roomSlice';
 import { setWebsocket } from '../redux/slices/websocketSlice';
 import LoadingScreen from './LoadingScreen';
 import { toast } from 'react-toastify';
-// import { Container, Title, Button, Input } from '../styles';
+import { RoomConfigInterface } from '../interface/roomConfigInterface';
 
-interface Features {
-  "Fast chat": boolean;
-  "Mandatory focus": boolean;
-  "Only watch once videos & photos": boolean;
-}
 
 
 
 
 export default function CreateRoom() {
-  const [features, setFeatures] = useState<Features>({
-    "Fast chat": false,
-    "Mandatory focus": false,
-    "Only watch once videos & photos": false,
+  const [features, setFeatures] = useState<RoomConfigInterface>({
+    "Max number users in room": 2,// max 10
+    "Max secs of inactivity": 40,
+    "Max msgs in room": 25, // max 100
+    "Mandatory focus": false
   });
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -39,9 +35,10 @@ export default function CreateRoom() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        fast_chat: features["Fast chat"],
-        mandatory_focus: features["Mandatory focus"],
-        once_view_photos_and_videos: features["Only watch once videos & photos"]
+        max_number_users_in_room : features["Max number users in room"],
+        max_secs_of_inactivity : features["Max secs of inactivity"],
+        max_msgs_in_room : features["Max msgs in room"],
+        mandatory_focus : features["Mandatory focus"],
       })
     }).then(res => res.json()).then(async res => {
       if (res.room_code) {
@@ -68,18 +65,55 @@ export default function CreateRoom() {
       <div className='mainContent'>
         <h1 className='title'>Create Room</h1>
         {
-          Object.keys(features).map((key) => (
-            <div className="featureRow" key={key}>
-              <label htmlFor={key}>
+          Object.keys(features).map((key) => {
+            const featureName = key as keyof RoomConfigInterface
+            const value = features[featureName]
+
+
+            const minValue = featureName === "Max number users in room" ? 2 : 0;
+            const maxValue = featureName === "Max number users in room" ? 10 : 100;
+            
+            return(
+            <div className="featureRow" key={featureName}>
+              <label htmlFor={featureName}>
                 <div>
                   <i className='fi fi-sr-info'></i>
-                  {key}
-                  <input type="checkbox" id={key} checked={features[key as keyof Features]} onChange={(e) => setFeatures({ ...features, [key]: e.target.checked })} />
+                  {featureName}
+                  {
+                    typeof value === "boolean" && <input type="checkbox" id={featureName} checked={value} onChange={(e) => setFeatures({ ...features, [key]: e.target.checked })} />
+                  }                  
                 </div>
-                <span className={`statusText ${features[key as keyof Features] ? 'enabled' : 'disabled'}`}>{features[key as keyof Features] ? 'enabled' : 'disabled'}</span>
+                {
+                  typeof value === "number"
+                    ? <div className='numberWrapper'>
+                      <input
+                        type="number"
+                        min={minValue}
+                        max={maxValue}
+                        value={value}
+                        onChange={(e) => setFeatures({
+                            ...features,
+                            [key as keyof RoomConfigInterface]: parseInt(e.target.value) > minValue ? parseInt(e.target.value) : minValue 
+                         })}
+                        className='numberInput' />
+                      <span className="numberText">{
+                        value === 0 ? <i className='fi fi-br-infinity'></i> : value
+                        }</span>
+                      {/* + and - btns */}
+                      <div className='btns'>
+                        <i className='fi fi-br-plus' onClick={() => setFeatures({ ...features, [key as keyof RoomConfigInterface]: value + 1 <= maxValue ? value + 1 : value })}></i>
+                        <i className='fi fi-br-minus' onClick={() => setFeatures({ ...features, [key as keyof RoomConfigInterface]: value - 1 >= minValue ? value - 1 : value })}></i>
+                      </div>
+                      
+                    </div>
+                    : <>
+                    <span className={`statusText ${features[key as keyof RoomConfigInterface] ? 'enabled' : 'disabled'}`}>{value ? 'enabled' : 'disabled'}</span>
+                    </>
+                }
+                
               </label>
             </div>
-          ))
+          )})
         }
       </div>
       <button onClick={createRoom} className='btn'>Create</button>
@@ -127,7 +161,46 @@ const Container = styled.div`
       width: 100%;
 
       input{
-        display: none;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .numberWrapper{
+        position: relative;
+        input{
+          z-index: 2;
+        }
+
+        .numberText{
+          position: absolute;
+          top: 50%;
+          right: 0;
+          transform: translateY(-50%);
+          font-size: large;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .btns{
+          z-index: 3;
+          display: flex;
+          flex-direction: column;
+          gap: .4em;
+          position: absolute;
+          top: 50%;
+          right: 3em;
+          transform: translateY(-50%);
+
+          i{
+            cursor: pointer;
+            font-size: .5em;
+            background-color: ${colors.secondary};
+            padding: .3em;
+            border-radius: 10%;
+          }
+        
+        }
       }
       i{
         font-size: 1.2em;

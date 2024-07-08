@@ -8,5 +8,4 @@
 - arreglar responder con aud ✅
 - arreglar autor msgs ✅
 - usar indexDB / mejorar DB ✅
-- permitir borrar archivos
 - config de la sala

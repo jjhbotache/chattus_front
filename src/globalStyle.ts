@@ -72,4 +72,18 @@ export const GlobalStyle = createGlobalStyle`
     box-shadow: 0 0 .4em ${colors.shadow};
   }
 
+
+  .htlmModalContainer{
+    ul{
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    li{
+      font-family: "King";
+      font-size: .8em;
+      margin: .5em 0;
+    }
+  }
+
 `;

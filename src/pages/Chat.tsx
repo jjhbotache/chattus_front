@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import styled from "styled-components";
+import styled, { CSSProperties, keyframes } from "styled-components";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 
@@ -45,6 +45,12 @@ export default function Chat() {
   })
 
 
+  // chat configs
+  const closeOnLoseFocus = useRef<boolean>(false);
+  const maxSegsWithoutMsgs = useRef<number>(0);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const interval = useRef<any>(null);
+
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -54,8 +60,32 @@ export default function Chat() {
   }, []);
 
   useEffect(() => {
-    updateStorageAndScroll();
+    whenNewMsgs();
   }, [msgs]);
+
+
+  const onBlur = () =>{
+    console.log("onBlur");
+    if(closeOnLoseFocus.current){
+      
+      if (
+        document.hidden ||
+        !document.hasFocus() ||
+        window.focus !== document.hasFocus ||
+        window.document.hasFocus() === false ||
+        document.visibilityState === "hidden"
+      ) {
+        toast.dismiss();
+        toast.warning("You left the chat");
+        cleanupLocalStorage();
+        ws.current?.close();
+        setMsgs([]);
+        setStorePercentage(0);
+        dispatch(setWebsocket(null));
+        dispatch(setRoom(""));
+      }
+    }
+  }
 
   const initializeChat = () => {
     cleanupLocalStorage();
@@ -78,11 +108,17 @@ export default function Chat() {
       .then(res => res.json())
       .then(data => {
         if (data.room_exists) {
+          maxSegsWithoutMsgs.current = data.room_data.max_secs_of_inactivity
+          closeOnLoseFocus.current = data.room_data.mandatory_focus;
+          
           setupWebSocket();
         } else {
           handleRoomNotFound();
         }
-      });
+      })
+      .catch(() => {
+        handleRoomNotFound();
+      })
   };
 
   const setupWebSocket = () => {
@@ -102,6 +138,8 @@ export default function Chat() {
   const handleWebSocketClose = (event: CloseEvent) => {
     console.log("ws connection closed", event);
     toast.error("Connection closed");
+    dispatch(setWebsocket(null));
+    dispatch(setRoom(""));
     navigate('/');
   };
 
@@ -121,11 +159,18 @@ export default function Chat() {
   const setupEventListeners = () => {
     window.addEventListener("keydown", onKeydown);
     window.addEventListener('beforeunload', onReload);
+    window.addEventListener("focus", onBlur);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onBlur);
+
   };
 
   const removeEventListeners = () => {
     window.removeEventListener("keydown", onKeydown);
     window.removeEventListener('beforeunload', onReload);
+    window.removeEventListener("focus", onBlur);
+    window.removeEventListener("blur", onBlur);
+    document.removeEventListener("visibilitychange", onBlur);
   };
 
   const onKeydown = (e: KeyboardEvent) => {
@@ -149,12 +194,29 @@ export default function Chat() {
 
   };
 
-  const updateStorageAndScroll = () => {
+  const whenNewMsgs = () => {
     const newPercentage = getAvaliableSpacePercentage(db.current);
     setStorePercentage(100 - (newPercentage * 100));
     avaliableSpaceInBytes.current *= newPercentage;
     scrollToBottom();
+
+    if (maxSegsWithoutMsgs.current > 0 && msgs[msgs.length - 1].sender !== "System") {
+      clearInterval(interval.current);
+      setTimeLeft(maxSegsWithoutMsgs.current);
+
+      interval.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev && prev > 0) {
+            return prev - .1;
+          } else {
+            clearInterval(interval.current);
+            return 0;
+          }
+        });
+      }, 100);
+    }
   };
+
 
   const scrollToBottom = () => {
     if (msgsContainerRef.current) {
@@ -221,7 +283,6 @@ export default function Chat() {
     return parsedMsgs;
   };
 
-
   const handleLastMessage = (lastMsg: Message, files: string[], filesLinked: Record<string, number>) => {
       if (lastMsg.kind !== "message" && lastMsg.sender !== "system") {
         
@@ -237,9 +298,6 @@ export default function Chat() {
           }
       }
   };
-
-
-
 
   const sendMessage = () => {
     if (!ws.current) {
@@ -285,6 +343,9 @@ export default function Chat() {
   };
 
   const handleFileUpload = (fileType: string, accept: string) => {
+    // pause on lose focus
+    closeOnLoseFocus.current = false
+
     if (!ws.current) {
       toast.error("Not connected");
       return;
@@ -300,6 +361,7 @@ export default function Chat() {
         const fileExtension = file.name.split('.').pop();
         const reader = new FileReader();
         reader.onloadend = () => {
+          closeOnLoseFocus.current = true;
           let fileTypeToSend = fileType;
           // get file type
           const loadedFileType = file.type.split('/')[0];
@@ -409,6 +471,7 @@ export default function Chat() {
     }
   };
 
+
   return(
     <Container>
       <StorageBar porcentaje={storePercentage} />
@@ -429,10 +492,11 @@ export default function Chat() {
           if (info.point.x > umbral)setMsgToReply(msg);
           }}
           dragElastic={0.01}
-          key={index} className={`msg ${msg.sender === "You" && "myMessage"}`}>
+          key={index} className={`msg ${msg.sender === "You" && "myMessage"} ${msg.sender=="System" && "systemMsg"}`}>
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="triangle"><polygon points="0,0 100,0 0,100" /></svg>
           
             <i  onClick={() => setMsgToReply(msg)} className={`fi fi-br-reply-all replyIcon ${msg.sender === "You" && "left"}`}></i>
+
 
             <small>{msg.sender}</small>
             {
@@ -466,7 +530,8 @@ export default function Chat() {
 
       </div>
       
-      <div className="msgContainer">
+      <MsgContainer  $percent={(timeLeft / maxSegsWithoutMsgs.current) * 100} >
+
         {optionsDeployed ? <>
           <i onClick={onAddImg} className="fi fi-sr-picture"></i>
           <i onClick={onAddVideo} className="fi fi-rr-film"></i>
@@ -490,7 +555,7 @@ export default function Chat() {
             <span className="txt"> {msgToReply.kind === "message" ? msgToReply.message : msgToReply.kind} </span>
           </div>
         }
-      </div>
+      </MsgContainer>
     </Container>
   )
 };
@@ -561,7 +626,6 @@ const Container = styled.div`
       padding: .5em;
       border-radius: .5em;
       background: ${colors.accent};
-      /* box-shadow: 0 0 .4em ${colors.shadow}; */
       max-width: 80%;
       align-self: flex-start;
       color: ${colors.light};
@@ -608,17 +672,30 @@ const Container = styled.div`
           fill: ${colors.secondary};
         }
       }
+
+      &.systemMsg{
+        opacity: .6;
+        background: ${colors.secondary};
+        color: ${colors.light};
+        .triangle{
+          fill: ${colors.secondary};
+        }
+      }
+
       
+      i{
+        
+        font-size: .6em;
+        padding: .3em;
+        border-radius: 50%;
+        cursor: pointer;
+      }
       .replyIcon{
+        background: rgba(255,255,255,.6);
+        color: ${colors.primary};
         position: absolute;
         top: -.5em;
         right: -.5em;
-        font-size: .6em;
-        padding: .3em;
-        background: rgba(255,255,255,.6);
-        color: ${colors.primary};
-        border-radius: 50%;
-        cursor: pointer;
         &.left{
           right: unset;
           left: -.5em;
@@ -629,80 +706,124 @@ const Container = styled.div`
 
   }
 
-  .msgContainer{
-    margin: .4em;
+`;
+
+const border_blink = keyframes`
+  0%{
+    border-color: ${colors.light};
+  }
+  50%{
+    border-color: ${colors.light}22;
+  }
+  100%{
+    border-color: ${colors.light};
+  }
+`;
+
+// Define the type for the props expected by the component
+interface MsgContainerProps {
+  $percent: number;
+}
+
+// Use the defined type and ensure the style object is typed correctly
+const MsgContainer = styled.div.attrs<MsgContainerProps>(props => ({
+  style: {
+    '--percent': `${props.$percent}%`,
+  } as CSSProperties, // Cast the style object to CSSProperties to ensure correct typing
+}))`
+  margin: .4em;
+  display: flex;
+  gap: .2em;
+  padding:  .2em .5em;
+  border-radius: .5em;
+  background: ${colors.accent};
+  box-shadow: 0 0 .4em ${colors.shadow};
+  min-height: 1.3em;
+  position: relative;
+
+  *{
+    z-index: 2;
+  }
+
+  i{
+    font-size: 1.5em;
+    color: ${colors.secondary};
+    cursor: pointer;
+    margin: .2em;
+  }
+
+  .msg{
+    width: 100%;
+    /* background: rgba(255,255,255,.1); */
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+    padding-left: .5em;
+    color: ${colors.light};
+    height: 100%;
+
+    &:focus{
+      outline: none;
+    }
+  }
+
+  .toReplyMsg{
+    small{
+      color: ${colors.light}aa;
+    }
     display: flex;
-    gap: .2em;
-    padding:  .2em .5em;
+    flex-direction: column;
+    position: absolute;
+    top: -4em;
+    left: 0;
+    background: ${colors.secondary};
+    padding: .5em;
+    width: 80%;
     border-radius: .5em;
-    background: ${colors.accent};
-    box-shadow: 0 0 .4em ${colors.shadow};
-    min-height: 1.3em;
-    position: relative;
-
+    .txt{
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
     i{
-      font-size: 1.5em;
-      color: ${colors.secondary};
-      cursor: pointer;
-      margin: .2em;
-    }
-
-    .msg{
-      width: 100%;
-      /* background: rgba(255,255,255,.1); */
-      background: transparent;
-      border: none;
-      margin: 0;
-      padding: 0;
-      padding-left: .5em;
-      color: ${colors.light};
-      height: 100%;
-
-      &:focus{
-        outline: none;
-      }
-    }
-
-    .toReplyMsg{
-      small{
-        color: ${colors.light}aa;
-      }
-      display: flex;
-      flex-direction: column;
       position: absolute;
-      top: -4em;
-      left: 0;
-      background: ${colors.secondary};
-      padding: .5em;
-      width: 80%;
-      border-radius: .5em;
-      .txt{
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-      i{
-        position: absolute;
-        top: -.5em;
-        right: -.5em;
-        font-size: 1.2em;
-        color: ${colors.light};
-        background-color: ${colors.secondary};
-        border-radius: 50%;
-        cursor: pointer;
-      }
-    }
-
-    .voiceIcon{
-      background: ${colors.accent};
-      padding: .1em;
+      top: -.5em;
+      right: -.5em;
+      font-size: 1.2em;
+      color: ${colors.light};
+      background-color: ${colors.secondary};
       border-radius: 50%;
-      &:active, &:focus, &:hover{
-        outline: none;
-        box-shadow: none;
-        border: none;
-      }
-
+      cursor: pointer;
     }
+  }
+
+  .voiceIcon{
+    background: ${colors.accent};
+    padding: .1em;
+    border-radius: 50%;
+    &:active, &:focus, &:hover{
+      outline: none;
+      box-shadow: none;
+      border: none;
+    }
+
+  }
+  &::before{
+    content: "";
+    position: absolute;
+    z-index:1;
+    top: 50%;
+    left: 0;
+    width: var(--percent);
+    height: 105%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: .2em solid ${colors.light};
+    border-right: none;
+    border-radius: .5em 0 0 .5em;
+
+    filter: blur(2px);
+    animation: ${border_blink} 4s infinite;
   }
 `;

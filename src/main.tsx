@@ -6,14 +6,14 @@ import { Provider } from 'react-redux'
 import store from './redux/store'
 import { Slide, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css';
-
+ 
 
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <>
     <ToastContainer
       position="top-right"
-      autoClose={5000}
+      autoClose={3000}
       hideProgressBar={false}
       newestOnTop
       closeOnClick

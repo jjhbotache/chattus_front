@@ -9,6 +9,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import LoadingScreen from './LoadingScreen';
 import { toast } from 'react-toastify';
 import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
+import Swal from 'sweetalert2';
 
 
 const codeLength = 6;
@@ -29,10 +30,61 @@ export default function JoinRoom() {
       const url = websocketAPI + `/${encodeURIComponent(code)}`;
       const response = await fetch(fetchAPI + `/verify_room/${encodeURIComponent(code)}`);
       const data = await response.json();
-      if (data.room_exists) {
-        dispacher(setWebsocket(url));
-        dispacher(setRoom(code));
-        navigate('/chat');
+      console.log(data);
+      
+
+      if (data.room_exists && data.room_data) {
+
+        let settingsHtml = `<h5>Settings:</h5><ul>`
+
+        Object.keys(data.room_data).forEach((setting:string)=>{
+          // replace _ with spaces and uppercase the first letter
+          
+          const parsedSetting = setting.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+          const value = data.room_data[setting];
+
+          settingsHtml += `
+          <li>
+          <strong>
+            ${parsedSetting}:
+          </strong>
+           ${typeof value== "boolean" 
+              ?value ? "✅" : "❌"
+              :value == 0 ? "♾️" : value
+          }
+           </li>`
+
+        })
+
+        settingsHtml += `</ul>`
+
+
+        const answ = await Swal.fire({
+          title: 'Joining Room!',
+          icon: 'warning',
+          iconColor: colors.secondary,
+          showCancelButton: true,
+          background: colors.primary,
+          color: colors.light,
+          confirmButtonColor: colors.secondary,
+          cancelButtonColor: colors.accent,
+          confirmButtonText: 'Join',
+          html: settingsHtml,
+          customClass: {
+            htmlContainer: 'htlmModalContainer',
+          }
+
+        })
+        if (answ.isConfirmed) {
+          dispacher(setWebsocket(url));
+          dispacher(setRoom(code));
+          navigate('/chat');
+        }else{
+          setLoading(false)
+          dispacher(setWebsocket(null));
+          dispacher(setRoom(""));
+          toast.info("Room not joined!");  
+        }
       }else{
         setLoading(false)
         dispacher(setWebsocket(null));
