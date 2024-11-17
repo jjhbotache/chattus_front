@@ -20,6 +20,7 @@ import AudioCustomComponent from "../components/global/AudioCustomComponent";
 import MicroRecorder from "../components/chat/MicroRecorder";
 import StorageBar from "../components/chat/StorageBar";
 import { getAvailableSpaceInBytes as getAvailableSpace, getAvaliableSpacePercentage, verifyIfTextCanBeStored } from "../helpers/storage";
+import parsedMsg from "../helpers/parseMsg";
 
 let mediaRecorder: MediaRecorder | undefined = undefined;
 
@@ -508,7 +509,7 @@ export default function Chat() {
 
             {
               msg.kind === "message" 
-              ?<span>{msg.message}</span>
+              ?<p>{parsedMsg(msg.message)}</p>
               :msg.kind === "image" 
               ?<img src={msg.message} alt="img" />
               :msg.kind === "video" 

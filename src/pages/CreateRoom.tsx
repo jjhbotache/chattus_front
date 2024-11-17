@@ -23,7 +23,7 @@ const tooltipInfo = {
 export default function CreateRoom() {
   const [features, setFeatures] = useState<RoomConfigInterface>({
     "Max number users in room": 2,// max 10
-    "Max secs of inactivity": 40,
+    "Max secs of inactivity": 0,
     "Max msgs in room": 25, // max 100
     "Mandatory focus": false
   });
