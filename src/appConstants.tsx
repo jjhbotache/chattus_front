@@ -1,5 +1,5 @@
 
-const realApiUrl = 'chattus-back.onrender.com';
+const realApiUrl = 'http://chattus.juanjosehuertas.dev';
 const devApiUrl = 'localhost:8000';
 
 
